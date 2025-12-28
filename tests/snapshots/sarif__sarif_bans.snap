@@ -18,7 +18,9 @@ expression: s
                 "region": {
                   "byteLength": 6,
                   "byteOffset": 99,
-                  "message": "feature denied here",
+                  "message": {
+                    "text": "feature denied here"
+                  },
                   "snippet": {
                     "text": "simple"
                   },
@@ -47,7 +49,9 @@ expression: s
                 "region": {
                   "byteLength": 7,
                   "byteOffset": 208,
-                  "message": "allowed features",
+                  "message": {
+                    "text": "allowed features"
+                  },
                   "snippet": {
                     "text": "['ssh']"
                   },
@@ -76,7 +80,9 @@ expression: s
                 "region": {
                   "byteLength": 7,
                   "byteOffset": 208,
-                  "message": "allowed features",
+                  "message": {
+                    "text": "allowed features"
+                  },
                   "snippet": {
                     "text": "['ssh']"
                   },
@@ -105,7 +111,9 @@ expression: s
                 "region": {
                   "byteLength": 7,
                   "byteOffset": 208,
-                  "message": "allowed features",
+                  "message": {
+                    "text": "allowed features"
+                  },
                   "snippet": {
                     "text": "['ssh']"
                   },
@@ -134,7 +142,9 @@ expression: s
                 "region": {
                   "byteLength": 7,
                   "byteOffset": 208,
-                  "message": "allowed features",
+                  "message": {
+                    "text": "allowed features"
+                  },
                   "snippet": {
                     "text": "['ssh']"
                   },
@@ -163,7 +173,9 @@ expression: s
                 "region": {
                   "byteLength": 14,
                   "byteOffset": 148,
-                  "message": "feature denied here",
+                  "message": {
+                    "text": "feature denied here"
+                  },
                   "snippet": {
                     "text": "zlib-ng-compat"
                   },
@@ -192,7 +204,9 @@ expression: s
                 "region": {
                   "byteLength": 5,
                   "byteOffset": 37,
-                  "message": "banned here",
+                  "message": {
+                    "text": "banned here"
+                  },
                   "snippet": {
                     "text": "vcpkg"
                   },

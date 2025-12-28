@@ -127,7 +127,7 @@ pub struct Result {
     pub partial_fingerprints: BTreeMap<String, String>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Message {
     pub text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -178,7 +178,7 @@ pub struct Region {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snippet: Option<ArtifactContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
+    pub message: Option<Message>,
 }
 
 /// Convert cargo-deny severity to SARIF level

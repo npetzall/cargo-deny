@@ -18,7 +18,9 @@ expression: s
                 "region": {
                   "byteLength": 7,
                   "byteOffset": 131,
-                  "message": "a deprecated license identifier was used",
+                  "message": {
+                    "text": "a deprecated license identifier was used"
+                  },
                   "snippet": {
                     "text": "GPL-2.0"
                   },
@@ -62,7 +64,9 @@ expression: s
                 "region": {
                   "byteLength": 10,
                   "byteOffset": 120,
-                  "message": "rejected: license is not explicitly allowed",
+                  "message": {
+                    "text": "rejected: license is not explicitly allowed"
+                  },
                   "snippet": {
                     "text": "Apache-2.0"
                   },
@@ -78,7 +82,9 @@ expression: s
                 "region": {
                   "byteLength": 7,
                   "byteOffset": 131,
-                  "message": "accepted: license is explicitly allowed",
+                  "message": {
+                    "text": "accepted: license is explicitly allowed"
+                  },
                   "snippet": {
                     "text": "GPL-2.0"
                   },
@@ -94,7 +100,9 @@ expression: s
                 "region": {
                   "byteLength": 13,
                   "byteOffset": 144,
-                  "message": "rejected: license is not explicitly allowed",
+                  "message": {
+                    "text": "rejected: license is not explicitly allowed"
+                  },
                   "snippet": {
                     "text": "LGPL-3.0-only"
                   },
@@ -110,7 +118,9 @@ expression: s
                 "region": {
                   "byteLength": 10,
                   "byteOffset": 161,
-                  "message": "rejected: license is not explicitly allowed",
+                  "message": {
+                    "text": "rejected: license is not explicitly allowed"
+                  },
                   "snippet": {
                     "text": "gnu gpl v3"
                   },
