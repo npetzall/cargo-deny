@@ -19,7 +19,9 @@ expression: s
                   "byteLength": 7,
                   "byteOffset": 131,
                   "message": "a deprecated license identifier was used",
-                  "snippet": "GPL-2.0",
+                  "snippet": {
+                    "text": "GPL-2.0"
+                  },
                   "startLine": 4
                 }
               }
@@ -45,7 +47,9 @@ expression: s
                 "region": {
                   "byteLength": 51,
                   "byteOffset": 120,
-                  "snippet": "Apache-2.0/GPL-2.0+ AND LGPL-3.0-only or gnu gpl v3",
+                  "snippet": {
+                    "text": "Apache-2.0/GPL-2.0+ AND LGPL-3.0-only or gnu gpl v3"
+                  },
                   "startLine": 4
                 }
               }
@@ -59,7 +63,9 @@ expression: s
                   "byteLength": 10,
                   "byteOffset": 120,
                   "message": "rejected: license is not explicitly allowed",
-                  "snippet": "Apache-2.0",
+                  "snippet": {
+                    "text": "Apache-2.0"
+                  },
                   "startLine": 4
                 }
               }
@@ -73,7 +79,9 @@ expression: s
                   "byteLength": 7,
                   "byteOffset": 131,
                   "message": "accepted: license is explicitly allowed",
-                  "snippet": "GPL-2.0",
+                  "snippet": {
+                    "text": "GPL-2.0"
+                  },
                   "startLine": 4
                 }
               }
@@ -87,7 +95,9 @@ expression: s
                   "byteLength": 13,
                   "byteOffset": 144,
                   "message": "rejected: license is not explicitly allowed",
-                  "snippet": "LGPL-3.0-only",
+                  "snippet": {
+                    "text": "LGPL-3.0-only"
+                  },
                   "startLine": 4
                 }
               }
@@ -101,7 +111,9 @@ expression: s
                   "byteLength": 10,
                   "byteOffset": 161,
                   "message": "rejected: license is not explicitly allowed",
-                  "snippet": "gnu gpl v3",
+                  "snippet": {
+                    "text": "gnu gpl v3"
+                  },
                   "startLine": 4
                 }
               }
