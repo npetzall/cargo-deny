@@ -30,7 +30,9 @@ expression: s
                 "region": {
                   "byteLength": 9,
                   "byteOffset": 134,
-                  "message": "no crate source fell under this organization",
+                  "message": {
+                    "text": "no crate source fell under this organization"
+                  },
                   "snippet": {
                     "text": "bizzlepop"
                   },
