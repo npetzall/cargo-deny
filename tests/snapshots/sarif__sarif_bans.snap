@@ -19,7 +19,9 @@ expression: s
                   "byteLength": 6,
                   "byteOffset": 99,
                   "message": "feature denied here",
-                  "snippet": "simple",
+                  "snippet": {
+                    "text": "simple"
+                  },
                   "startLine": 4
                 }
               }
@@ -46,7 +48,9 @@ expression: s
                   "byteLength": 7,
                   "byteOffset": 208,
                   "message": "allowed features",
-                  "snippet": "['ssh']",
+                  "snippet": {
+                    "text": "['ssh']"
+                  },
                   "startLine": 6
                 }
               }
@@ -73,7 +77,9 @@ expression: s
                   "byteLength": 7,
                   "byteOffset": 208,
                   "message": "allowed features",
-                  "snippet": "['ssh']",
+                  "snippet": {
+                    "text": "['ssh']"
+                  },
                   "startLine": 6
                 }
               }
@@ -100,7 +106,9 @@ expression: s
                   "byteLength": 7,
                   "byteOffset": 208,
                   "message": "allowed features",
-                  "snippet": "['ssh']",
+                  "snippet": {
+                    "text": "['ssh']"
+                  },
                   "startLine": 6
                 }
               }
@@ -127,7 +135,9 @@ expression: s
                   "byteLength": 7,
                   "byteOffset": 208,
                   "message": "allowed features",
-                  "snippet": "['ssh']",
+                  "snippet": {
+                    "text": "['ssh']"
+                  },
                   "startLine": 6
                 }
               }
@@ -154,7 +164,9 @@ expression: s
                   "byteLength": 14,
                   "byteOffset": 148,
                   "message": "feature denied here",
-                  "snippet": "zlib-ng-compat",
+                  "snippet": {
+                    "text": "zlib-ng-compat"
+                  },
                   "startLine": 5
                 }
               }
@@ -181,7 +193,9 @@ expression: s
                   "byteLength": 5,
                   "byteOffset": 37,
                   "message": "banned here",
-                  "snippet": "vcpkg",
+                  "snippet": {
+                    "text": "vcpkg"
+                  },
                   "startLine": 2
                 }
               }
