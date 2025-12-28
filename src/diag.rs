@@ -145,7 +145,8 @@ impl Files {
                             text: String::from(text),
                         }
                     }),
-                    message: (!label.message.is_empty()).then(|| label.message.clone()),
+                    message: (!label.message.is_empty())
+                        .then(|| model::Message::text(label.message.clone())),
                 },
             },
         })
