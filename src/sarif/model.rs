@@ -164,13 +164,19 @@ pub struct ArtifactLocation {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum ArtifactContent {
+    Text { text: String },
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Region {
     pub start_line: usize,
     pub byte_offset: usize,
     pub byte_length: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub snippet: Option<String>,
+    pub snippet: Option<ArtifactContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
 }
