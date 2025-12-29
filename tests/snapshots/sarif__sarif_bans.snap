@@ -11,7 +11,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://sarif::sarif_bans.toml"
@@ -39,7 +38,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://sarif::sarif_bans.toml"
@@ -67,7 +65,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://sarif::sarif_bans.toml"
@@ -95,7 +92,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://sarif::sarif_bans.toml"
@@ -123,7 +119,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://sarif::sarif_bans.toml"
@@ -151,7 +146,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://sarif::sarif_bans.toml"
@@ -179,7 +173,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://sarif::sarif_bans.toml"
@@ -207,65 +200,16 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.36.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot_core@0.9.3",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "parking_lot_core",
-                  "parentIndex": 1
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.42.0",
-                  "index": 1,
-                  "kind": "violating-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 0
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
+                  "byteLength": 26,
+                  "byteOffset": 99,
+                  "message": "features-galore@0.1.0 / parking_lot_core@0.9.3 / windows-sys@0.36.1",
+                  "snippet": "parking_lot_core = \"=0.9.3\"",
+                  "startLine": 8
                 }
               }
             }
@@ -284,79 +228,16 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_aarch64_msvc@0.36.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_aarch64_msvc",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.36.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot_core@0.9.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "parking_lot_core",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_aarch64_msvc@0.42.0",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_aarch64_msvc",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.42.0",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
+                  "byteLength": 26,
+                  "byteOffset": 99,
+                  "message": "features-galore@0.1.0 / parking_lot_core@0.9.3 / windows-sys@0.36.1 / windows_aarch64_msvc@0.36.1",
+                  "snippet": "parking_lot_core = \"=0.9.3\"",
+                  "startLine": 8
                 }
               }
             }
@@ -375,79 +256,16 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_i686_gnu@0.36.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_i686_gnu",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.36.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot_core@0.9.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "parking_lot_core",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_i686_gnu@0.42.0",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_i686_gnu",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.42.0",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
+                  "byteLength": 26,
+                  "byteOffset": 99,
+                  "message": "features-galore@0.1.0 / parking_lot_core@0.9.3 / windows-sys@0.36.1 / windows_i686_gnu@0.36.1",
+                  "snippet": "parking_lot_core = \"=0.9.3\"",
+                  "startLine": 8
                 }
               }
             }
@@ -466,79 +284,16 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_i686_msvc@0.36.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_i686_msvc",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.36.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot_core@0.9.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "parking_lot_core",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_i686_msvc@0.42.0",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_i686_msvc",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.42.0",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
+                  "byteLength": 26,
+                  "byteOffset": 99,
+                  "message": "features-galore@0.1.0 / parking_lot_core@0.9.3 / windows-sys@0.36.1 / windows_i686_msvc@0.36.1",
+                  "snippet": "parking_lot_core = \"=0.9.3\"",
+                  "startLine": 8
                 }
               }
             }
@@ -557,79 +312,16 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_x86_64_gnu@0.36.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_x86_64_gnu",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.36.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot_core@0.9.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "parking_lot_core",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_x86_64_gnu@0.42.0",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_x86_64_gnu",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.42.0",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
+                  "byteLength": 26,
+                  "byteOffset": 99,
+                  "message": "features-galore@0.1.0 / parking_lot_core@0.9.3 / windows-sys@0.36.1 / windows_x86_64_gnu@0.36.1",
+                  "snippet": "parking_lot_core = \"=0.9.3\"",
+                  "startLine": 8
                 }
               }
             }
@@ -648,79 +340,16 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_x86_64_msvc@0.36.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_x86_64_msvc",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.36.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot_core@0.9.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "parking_lot_core",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/features-galore#features-galore@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "features-galore",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows_x86_64_msvc@0.42.0",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "windows_x86_64_msvc",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.42.0",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "windows-sys",
-                  "parentIndex": 1
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/tests/test_data/features-galore/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
+                  "byteLength": 26,
+                  "byteOffset": 99,
+                  "message": "features-galore@0.1.0 / parking_lot_core@0.9.3 / windows-sys@0.36.1 / windows_x86_64_msvc@0.36.1",
+                  "snippet": "parking_lot_core = \"=0.9.3\"",
+                  "startLine": 8
                 }
               }
             }

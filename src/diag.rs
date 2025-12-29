@@ -144,7 +144,6 @@ impl Files {
                     message: (!label.message.is_empty()).then(|| label.message.clone()),
                 },
             }),
-            logical_locations: Vec::new(),
         })
     }
 

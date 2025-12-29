@@ -11,30 +11,16 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/sources#sources@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "sources",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "git+https://github.com/dtolnay/anyhow?branch=master#anyhow@1.0.68",
-                  "index": 1,
-                  "kind": "violating-dependency",
-                  "name": "anyhow",
-                  "parentIndex": 0
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/tests/test_data/sources/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
+                  "byteLength": 13,
+                  "byteOffset": 137,
+                  "message": "sources@0.1.0 / anyhow@1.0.68",
+                  "snippet": "anyhow = \"1.0\"",
+                  "startLine": 8
                 }
               }
             }
@@ -52,7 +38,6 @@ expression: s
           "level": "warning",
           "locations": [
             {
-              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://sarif::sarif_sources.toml"

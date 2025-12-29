@@ -11,22 +11,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#ammonia@0.7.0",
-                  "index": 1,
-                  "kind": "violating-dependency",
-                  "name": "ammonia",
-                  "parentIndex": 0
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -34,6 +18,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / ammonia@0.7.0",
                   "startLine": 1
                 }
               }
@@ -54,22 +39,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#ammonia@0.7.0",
-                  "index": 1,
-                  "kind": "violating-dependency",
-                  "name": "ammonia",
-                  "parentIndex": 0
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -77,6 +46,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / ammonia@0.7.0",
                   "startLine": 1
                 }
               }
@@ -97,29 +67,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#ammonia@1.2.0",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "ammonia",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#artifact_serde@0.3.1",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "artifact_serde",
-                  "parentIndex": 1
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -127,6 +74,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / artifact_serde@0.3.1 / ammonia@1.2.0",
                   "startLine": 1
                 }
               }
@@ -147,29 +95,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#ammonia@1.2.0",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "ammonia",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#artifact_serde@0.3.1",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "artifact_serde",
-                  "parentIndex": 1
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -177,6 +102,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / artifact_serde@0.3.1 / ammonia@1.2.0",
                   "startLine": 1
                 }
               }
@@ -197,22 +123,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#failure@0.1.8",
-                  "index": 1,
-                  "kind": "violating-dependency",
-                  "name": "failure",
-                  "parentIndex": 0
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -220,6 +130,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / failure@0.1.8",
                   "startLine": 1
                 }
               }
@@ -240,22 +151,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#failure@0.1.8",
-                  "index": 1,
-                  "kind": "violating-dependency",
-                  "name": "failure",
-                  "parentIndex": 0
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -263,6 +158,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / failure@0.1.8",
                   "startLine": 1
                 }
               }
@@ -283,43 +179,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#idna@0.1.5",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "idna",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#url@1.7.2",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "url",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#ammonia@1.2.0",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "ammonia",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#artifact_serde@0.3.1",
-                  "index": 4,
-                  "kind": "violating-dependency",
-                  "name": "artifact_serde",
-                  "parentIndex": 3
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -327,48 +186,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#idna@0.1.5",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "idna",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#url@1.7.2",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "url",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#ammonia@0.7.0",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "ammonia",
-                  "parentIndex": 2
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
+                  "message": "advisories@0.1.0 / artifact_serde@0.3.1 / ammonia@1.2.0 / url@1.7.2 / idna@0.1.5",
                   "startLine": 1
                 }
               }
@@ -389,36 +207,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#idna@0.2.3",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "idna",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-proto@0.20.4",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "trust-dns-proto",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -426,41 +214,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#idna@0.2.3",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "idna",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 1
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
+                  "message": "advisories@0.1.0 / trust-dns-resolver@0.20.4 / trust-dns-proto@0.20.4 / idna@0.2.3",
                   "startLine": 1
                 }
               }
@@ -481,43 +235,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#idna@0.3.0",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "idna",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#url@2.3.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "url",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-proto@0.20.4",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "trust-dns-proto",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 4,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 3
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -525,6 +242,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / trust-dns-resolver@0.20.4 / trust-dns-proto@0.20.4 / url@2.3.1 / idna@0.3.0",
                   "startLine": 1
                 }
               }
@@ -545,43 +263,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#instant@0.1.10",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "instant",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot_core@0.8.3",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "parking_lot_core",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot@0.11.1",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "parking_lot",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 4,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 3
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -589,314 +270,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#instant@0.1.10",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "instant",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot_core@0.8.3",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "parking_lot_core",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot@0.11.1",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "parking_lot",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#scheduled-thread-pool@0.2.5",
-                  "index": 4,
-                  "kind": "transitive-dependency",
-                  "name": "scheduled-thread-pool",
-                  "parentIndex": 3
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#r2d2@0.8.9",
-                  "index": 5,
-                  "kind": "transitive-dependency",
-                  "name": "r2d2",
-                  "parentIndex": 4
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 6,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 5
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#instant@0.1.10",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "instant",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot_core@0.8.3",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "parking_lot_core",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot@0.11.1",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "parking_lot",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#r2d2@0.8.9",
-                  "index": 4,
-                  "kind": "transitive-dependency",
-                  "name": "r2d2",
-                  "parentIndex": 3
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 5,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 4
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#instant@0.1.10",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "instant",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot@0.11.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "parking_lot",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 2
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#instant@0.1.10",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "instant",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot@0.11.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "parking_lot",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#scheduled-thread-pool@0.2.5",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "scheduled-thread-pool",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#r2d2@0.8.9",
-                  "index": 4,
-                  "kind": "transitive-dependency",
-                  "name": "r2d2",
-                  "parentIndex": 3
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 5,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 4
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#instant@0.1.10",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "instant",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#parking_lot@0.11.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "parking_lot",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#r2d2@0.8.9",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "r2d2",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 4,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 3
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#instant@0.1.10",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "instant",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#fastrand@1.4.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "fastrand",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 2
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
+                  "message": "advisories@0.1.0 / trust-dns-resolver@0.20.4 / parking_lot@0.11.1 / parking_lot_core@0.8.3 / instant@0.1.10",
                   "startLine": 1
                 }
               }
@@ -917,22 +291,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#libusb@0.3.0",
-                  "index": 1,
-                  "kind": "violating-dependency",
-                  "name": "libusb",
-                  "parentIndex": 0
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -940,6 +298,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / libusb@0.3.0",
                   "startLine": 1
                 }
               }
@@ -960,43 +319,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#mio@0.7.14",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "mio",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#tokio@1.16.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "tokio",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-proto@0.20.4",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "trust-dns-proto",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 4,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 3
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1004,48 +326,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#mio@0.7.14",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "mio",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#tokio@1.16.1",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "tokio",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 2
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
+                  "message": "advisories@0.1.0 / trust-dns-resolver@0.20.4 / trust-dns-proto@0.20.4 / tokio@1.16.1 / mio@0.7.14",
                   "startLine": 1
                 }
               }
@@ -1066,36 +347,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#openssl@0.10.35",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "openssl",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#native-tls@0.2.7",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "native-tls",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1103,6 +354,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / lettre@0.10.0-rc.3 / native-tls@0.2.7 / openssl@0.10.35",
                   "startLine": 1
                 }
               }
@@ -1123,36 +375,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#openssl@0.10.35",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "openssl",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#native-tls@0.2.7",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "native-tls",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1160,6 +382,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / lettre@0.10.0-rc.3 / native-tls@0.2.7 / openssl@0.10.35",
                   "startLine": 1
                 }
               }
@@ -1180,36 +403,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#openssl@0.10.35",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "openssl",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#native-tls@0.2.7",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "native-tls",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1217,6 +410,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / lettre@0.10.0-rc.3 / native-tls@0.2.7 / openssl@0.10.35",
                   "startLine": 1
                 }
               }
@@ -1237,36 +431,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#openssl@0.10.35",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "openssl",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#native-tls@0.2.7",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "native-tls",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1274,6 +438,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / lettre@0.10.0-rc.3 / native-tls@0.2.7 / openssl@0.10.35",
                   "startLine": 1
                 }
               }
@@ -1294,36 +459,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#openssl@0.10.35",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "openssl",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#native-tls@0.2.7",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "native-tls",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1331,6 +466,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / lettre@0.10.0-rc.3 / native-tls@0.2.7 / openssl@0.10.35",
                   "startLine": 1
                 }
               }
@@ -1351,36 +487,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#openssl@0.10.35",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "openssl",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#native-tls@0.2.7",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "native-tls",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1388,6 +494,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / lettre@0.10.0-rc.3 / native-tls@0.2.7 / openssl@0.10.35",
                   "startLine": 1
                 }
               }
@@ -1408,36 +515,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#openssl@0.10.35",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "openssl",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#native-tls@0.2.7",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "native-tls",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1445,6 +522,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / lettre@0.10.0-rc.3 / native-tls@0.2.7 / openssl@0.10.35",
                   "startLine": 1
                 }
               }
@@ -1465,29 +543,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#regex@1.5.4",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "regex",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 1
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1495,41 +550,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#regex@1.5.4",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "regex",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#spdx@0.3.1",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "spdx",
-                  "parentIndex": 1
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
+                  "message": "advisories@0.1.0 / lettre@0.10.0-rc.3 / regex@1.5.4",
                   "startLine": 1
                 }
               }
@@ -1550,43 +571,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#remove_dir_all@0.5.3",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "remove_dir_all",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#tempfile@3.2.0",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "tempfile",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#native-tls@0.2.7",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "native-tls",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#lettre@0.10.0-rc.3",
-                  "index": 4,
-                  "kind": "violating-dependency",
-                  "name": "lettre",
-                  "parentIndex": 3
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1594,6 +578,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / lettre@0.10.0-rc.3 / native-tls@0.2.7 / tempfile@3.2.0 / remove_dir_all@0.5.3",
                   "startLine": 1
                 }
               }
@@ -1614,43 +599,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#rustc-serialize@0.3.24",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "rustc-serialize",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#markup5ever@0.4.0",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "markup5ever",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#html5ever@0.19.0",
-                  "index": 3,
-                  "kind": "transitive-dependency",
-                  "name": "html5ever",
-                  "parentIndex": 2
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#ammonia@0.7.0",
-                  "index": 4,
-                  "kind": "violating-dependency",
-                  "name": "ammonia",
-                  "parentIndex": 3
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1658,6 +606,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
+                  "message": "advisories@0.1.0 / ammonia@0.7.0 / html5ever@0.19.0 / markup5ever@0.4.0 / rustc-serialize@0.3.24",
                   "startLine": 1
                 }
               }
@@ -1678,36 +627,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#tokio@1.16.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "tokio",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-proto@0.20.4",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "trust-dns-proto",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1715,41 +634,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#tokio@1.16.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "tokio",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 1
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
+                  "message": "advisories@0.1.0 / trust-dns-resolver@0.20.4 / trust-dns-proto@0.20.4 / tokio@1.16.1",
                   "startLine": 1
                 }
               }
@@ -1770,36 +655,6 @@ expression: s
           "level": "error",
           "locations": [
             {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#tokio@1.16.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "tokio",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-proto@0.20.4",
-                  "index": 2,
-                  "kind": "transitive-dependency",
-                  "name": "trust-dns-proto",
-                  "parentIndex": 1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 3,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 2
-                }
-              ],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
@@ -1807,41 +662,7 @@ expression: s
                 "region": {
                   "byteLength": 0,
                   "byteOffset": 0,
-                  "startLine": 1
-                }
-              }
-            },
-            {
-              "logicalLocations": [
-                {
-                  "fullyQualifiedName": "path+file:///home/jake/code/cargo-deny/examples/06_advisories#advisories@0.1.0",
-                  "index": 0,
-                  "kind": "root-dependency",
-                  "name": "advisories",
-                  "parentIndex": -1
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#tokio@1.16.1",
-                  "index": 1,
-                  "kind": "transitive-dependency",
-                  "name": "tokio",
-                  "parentIndex": 0
-                },
-                {
-                  "fullyQualifiedName": "registry+https://github.com/rust-lang/crates.io-index#trust-dns-resolver@0.20.4",
-                  "index": 2,
-                  "kind": "violating-dependency",
-                  "name": "trust-dns-resolver",
-                  "parentIndex": 1
-                }
-              ],
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file:///home/jake/code/cargo-deny/examples/06_advisories/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 0,
-                  "byteOffset": 0,
+                  "message": "advisories@0.1.0 / trust-dns-resolver@0.20.4 / trust-dns-proto@0.20.4 / tokio@1.16.1",
                   "startLine": 1
                 }
               }

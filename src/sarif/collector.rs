@@ -1,6 +1,6 @@
 use crate::diag::Extra;
 use crate::sarif::model::{
-    DefaultConfiguration, Driver, Help, Location, LogicalLocation, Message, Result as SarifResult,
+    DefaultConfiguration, Driver, Help, Location, Message, Result as SarifResult,
     Rule, RuleProperties, Run, SarifLog, TextContent, Tool,
 };
 use crate::{
@@ -151,29 +151,12 @@ impl SarifCollector {
             let krates_list: smallvec::SmallVec<[Kid; 2]> = diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
 
             let locations = if locations.is_empty() {
-                // Build logical location chains from root dependencies to violating crates
+                // Find root crates that depend on the violating crates
                 if let Some(krates_ref) = krates {
-                    self.build_dependency_chain_locations(&krates_list, krates_ref)
+                    self.build_root_crate_locations(&krates_list, krates_ref)
                 } else {
-                    // Fallback: simple logical locations if no graph available
-                    krates_list
-                        .iter()
-                        .map(|kid| Location {
-                            physical_location: None,
-                            logical_locations: vec![LogicalLocation {
-                                name: kid.name().to_string(),
-                                fully_qualified_name: Some(format!(
-                                    "{}#{}@{}",
-                                    kid.source(),
-                                    kid.name(),
-                                    kid.version()
-                                )),
-                                kind: Some("dependency".to_string()),
-                                index: 0,
-                                parent_index: -1,
-                            }],
-                        })
-                        .collect::<Vec<Location>>()
+                    // Fallback: no locations if no graph available
+                    Vec::new()
                 }
             } else {
                 locations
@@ -311,120 +294,265 @@ impl SarifCollector {
         }
     }
 
-    /// Builds dependency chain locations from root dependencies to violating crates
-    /// Each root crate gets its own Location with:
-    /// - physical_location pointing to the root crate's Cargo.toml
-    /// - logical_locations chain showing the dependency path from root to violating crate
-    fn build_dependency_chain_locations(
+    /// Builds locations pointing to root crates that depend on the violating crates
+    /// Each root crate gets its own Location with physical_location pointing to the root crate's Cargo.toml
+    fn build_root_crate_locations(
         &self,
         violating_krates: &[Kid],
         krates: &Krates,
     ) -> Vec<Location> {
         let mut locations = Vec::new();
+        let mut seen_roots = HashSet::new();
 
         for kid in violating_krates {
             // Find all dependency paths from any root to this violating crate
             let paths = self.find_all_paths_to_roots(kid, krates);
             
-            if paths.is_empty() {
-                // Fallback: just the violating crate if we can't find any paths
-                locations.push(Location {
-                    physical_location: None,
-                    logical_locations: vec![LogicalLocation {
-                        name: kid.name().to_string(),
-                        fully_qualified_name: Some(format!(
-                            "{}#{}@{}",
-                            kid.source(),
-                            kid.name(),
-                            kid.version()
-                        )),
-                        kind: Some("dependency".to_string()),
-                        index: 0,
-                        parent_index: -1,
-                    }],
-                });
-            } else {
-                // Create a Location for each unique path (each root crate)
-                for path in paths {
-                    // The first element in the path is the root crate
-                    let root_kid = &path[0];
-                    
-                    // Get the root crate to access its manifest_path
-                    let Some((_, root_node)) = krates.get_node(root_kid, None) else {
-                        continue;
-                    };
-                    
-                    let Node::Krate { krate: root_krate, .. } = root_node else {
-                        continue;
-                    };
+            // Create a Location for each unique root crate
+            for path in paths {
+                // The first element in the path is the root crate
+                let root_kid = &path[0];
+                
+                // Skip if we've already seen this root
+                if !seen_roots.insert(root_kid.clone()) {
+                    continue;
+                }
+                
+                // Get the root crate to access its manifest_path
+                let Some((_, root_node)) = krates.get_node(root_kid, None) else {
+                    continue;
+                };
+                
+                let Node::Krate { krate: root_krate, .. } = root_node else {
+                    continue;
+                };
 
-                    // Build the logical location chain from root to violating crate
-                    let mut logical_locations = Vec::new();
-                    
-                    for (idx, path_kid) in path.iter().enumerate() {
-                        logical_locations.push(LogicalLocation {
-                            name: path_kid.name().to_string(),
-                            fully_qualified_name: Some(format!(
-                                "{}#{}@{}",
-                                path_kid.source(),
-                                path_kid.name(),
-                                path_kid.version()
-                            )),
-                            kind: Some(if idx == 0 {
-                                "root-dependency".to_string()
-                            } else if idx == path.len() - 1 {
-                                "violating-dependency".to_string()
-                            } else {
-                                "transitive-dependency".to_string()
-                            }),
-                            index: idx as i32,
-                            parent_index: if idx > 0 { (idx - 1) as i32 } else { -1 },
-                        });
+                // The path is already in correct order: [root, dep1, dep2, ..., violating_crate]
+                // Find dep1 (the first dependency in the path) in the root crate's manifest
+                // Only check dep1 - if it's not directly declared in root, we can't find it
+                let (dep_info, dep1_manifest_name) = if path.len() > 1 {
+                    let dep1_kid = &path[1];
+                    if let Some(root_nid) = krates.nid_for_kid(root_kid) {
+                        // Check if dep1 is directly declared in the root crate
+                        root_krate
+                            .deps
+                            .iter()
+                            .enumerate()
+                            .find_map(|(i, dep)| {
+                                krates
+                                    .resolved_dependency(root_nid, i)
+                                    .filter(|resolved_kid| resolved_kid.id == *dep1_kid)
+                                    .map(|_| dep.name.as_str())
+                            })
+                            .map(|dep_name| {
+                                // Found dep1 in root's deps, now find it in the manifest
+                                let manifest_info = self.find_dependency_in_manifest(
+                                    root_krate.manifest_path.as_std_path(),
+                                    dep_name,
+                                );
+                                (manifest_info, Some(dep_name))
+                            })
+                            .unwrap_or((None, None))
+                    } else {
+                        (None, None)
                     }
+                } else {
+                    (None, None)
+                };
 
-                    // Create Location with physical location pointing to root's Cargo.toml
-                    locations.push(Location {
-                        physical_location: Some(crate::sarif::model::PhysicalLocation {
-                            artifact_location: crate::sarif::model::ArtifactLocation {
-                                uri: format!("file://{}", root_krate.manifest_path),
-                            },
-                            region: crate::sarif::model::Region {
-                                start_line: 1,
-                                byte_offset: 0,
-                                byte_length: 0,
-                                snippet: None,
-                                message: None,
-                            },
-                        }),
-                        logical_locations,
-                    });
+                // Build dependency path message: root / dep1 / dep2 / ... / violating_crate
+                let path_message = self.build_dependency_path_message(&path, dep1_manifest_name);
+
+                // Create Location with physical location pointing to root's Cargo.toml
+                let (start_line, snippet, byte_offset, byte_length) = dep_info
+                    .map(|(line, snip, offset, length)| (line, Some(snip), offset, length))
+                    .unwrap_or((1, None, 0, 0));
+
+                locations.push(Location {
+                    physical_location: Some(crate::sarif::model::PhysicalLocation {
+                        artifact_location: crate::sarif::model::ArtifactLocation {
+                            uri: format!("file://{}", root_krate.manifest_path),
+                        },
+                        region: crate::sarif::model::Region {
+                            start_line,
+                            byte_offset,
+                            byte_length,
+                            snippet,
+                            message: Some(path_message),
+                        },
+                    }),
+                });
+            }
+        }
+
+        locations
+    }
+
+    /// Finds the dependency declaration in a Cargo.toml manifest
+    /// Returns (line_number, line_content, byte_offset, byte_length) if found, None otherwise
+    /// If the dependency appears in multiple sections, prioritizes [dependencies] > [dev-dependencies] > [build-dependencies]
+    fn find_dependency_in_manifest(
+        &self,
+        manifest_path: &std::path::Path,
+        dep_name_in_manifest: &str,
+    ) -> Option<(usize, String, usize, usize)> {
+        // Read the manifest file
+        let contents = std::fs::read_to_string(manifest_path).ok()?;
+        
+        // Parse the TOML file
+        let root = toml_span::parse(&contents).ok()?;
+
+        // Helper to find dependency in a specific section
+        // Returns (priority, key_span, value_span) if found
+        // Priority: dependencies (0) > dev-dependencies (1) > build-dependencies (2)
+        let find_in_section = |pointer: &str, priority: usize| -> Option<(usize, toml_span::Span, toml_span::Span)> {
+            let dep_table = root.pointer(pointer)?;
+            let table = dep_table.as_table()?;
+            let (key, dep_value) = table.get_key_value(dep_name_in_manifest)?;
+            Some((priority, key.span, dep_value.span))
+        };
+
+        // Check sections in priority order: dependencies > dev-dependencies > build-dependencies
+        let mut best_match: Option<(usize, toml_span::Span, toml_span::Span)> = None;
+
+        // Check [dependencies] section (priority 0)
+        if let Some(match_info) = find_in_section("/dependencies", 0) {
+            best_match = Some(match_info);
+        }
+
+        // Check [dev-dependencies] section (priority 1)
+        if let Some(match_info) = find_in_section("/dev-dependencies", 1) {
+            match best_match {
+                None => best_match = Some(match_info),
+                Some((best_priority, _, _)) if match_info.0 < best_priority => {
+                    best_match = Some(match_info);
+                }
+                _ => {}
+            }
+        }
+
+        // Check [build-dependencies] section (priority 2)
+        if let Some(match_info) = find_in_section("/build-dependencies", 2) {
+            match best_match {
+                None => best_match = Some(match_info),
+                Some((best_priority, _, _)) if match_info.0 < best_priority => {
+                    best_match = Some(match_info);
+                }
+                _ => {}
+            }
+        }
+
+        // Check target-specific dependency sections (treated as regular dependencies, priority 0)
+        if let Some(targets) = root.pointer("/target") {
+            if let Some(targets_table) = targets.as_table() {
+                for (_target_key, target_value) in targets_table.iter() {
+                    if let Some(target_table) = target_value.as_table() {
+                        // Check [target.*.dependencies]
+                        if let Some(deps_table) = target_table.get("dependencies") {
+                            if let Some(deps_table) = deps_table.as_table() {
+                                if let Some((key, dep_value)) = deps_table.get_key_value(dep_name_in_manifest) {
+                                    match best_match {
+                                        None => {
+                                            best_match = Some((0, key.span, dep_value.span));
+                                        }
+                                        Some((best_priority, _, _)) if best_priority > 0 => {
+                                            best_match = Some((0, key.span, dep_value.span));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                        // Check [target.*.dev-dependencies]
+                        if let Some(deps_table) = target_table.get("dev-dependencies") {
+                            if let Some(deps_table) = deps_table.as_table() {
+                                if let Some((key, dep_value)) = deps_table.get_key_value(dep_name_in_manifest) {
+                                    match best_match {
+                                        None => {
+                                            best_match = Some((1, key.span, dep_value.span));
+                                        }
+                                        Some((best_priority, _, _)) if best_priority > 1 => {
+                                            best_match = Some((1, key.span, dep_value.span));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                        // Check [target.*.build-dependencies]
+                        if let Some(deps_table) = target_table.get("build-dependencies") {
+                            if let Some(deps_table) = deps_table.as_table() {
+                                if let Some((key, dep_value)) = deps_table.get_key_value(dep_name_in_manifest) {
+                                    match best_match {
+                                        None => {
+                                            best_match = Some((2, key.span, dep_value.span));
+                                        }
+                                        Some((best_priority, _, _)) if best_priority > 2 => {
+                                            best_match = Some((2, key.span, dep_value.span));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        if locations.is_empty() {
-            // Final fallback
-            violating_krates
-                .iter()
-                .map(|kid| Location {
-                    physical_location: None,
-                    logical_locations: vec![LogicalLocation {
-                        name: kid.name().to_string(),
-                        fully_qualified_name: Some(format!(
-                            "{}#{}@{}",
-                            kid.source(),
-                            kid.name(),
-                            kid.version()
-                        )),
-                        kind: Some("dependency".to_string()),
-                        index: 0,
-                        parent_index: -1,
-                    }],
-                })
-                .collect()
-        } else {
-            locations
+        // Extract information from the best match
+        let (_, key_span, value_span) = best_match?;
+
+        // Use the key span for byte offset (start of the dependency name)
+        // Use the value span end for the full dependency declaration length
+        let byte_offset = key_span.start;
+        let byte_length = value_span.end - key_span.start;
+
+        // Calculate line number from byte offset
+        let line_number = contents[..byte_offset.min(contents.len())]
+            .chars()
+            .filter(|&c| c == '\n')
+            .count()
+            + 1;
+
+        // Extract the line content (from key start to end of line containing value end)
+        let line_end = contents[byte_offset..]
+            .find('\n')
+            .map(|pos| byte_offset + pos + 1)
+            .unwrap_or(contents.len());
+        let line_start = contents[..byte_offset]
+            .rfind('\n')
+            .map(|pos| pos + 1)
+            .unwrap_or(0);
+        let line_content = contents[line_start..line_end.min(contents.len())]
+            .trim_end()
+            .to_string();
+
+        Some((line_number, line_content, byte_offset, byte_length))
+    }
+
+    /// Builds a dependency path message in the format: name@version / name@version / ...
+    /// Uses manifest names where available (for dep1), package names otherwise
+    fn build_dependency_path_message(
+        &self,
+        path: &[Kid],
+        dep1_manifest_name: Option<&str>,
+    ) -> String {
+        let mut parts = Vec::new();
+
+        for (idx, kid) in path.iter().enumerate() {
+            let name = if idx == 1 {
+                // Use manifest name for dep1 if available, otherwise fall back to package name
+                dep1_manifest_name.unwrap_or_else(|| kid.name())
+            } else {
+                // Use package name for root and other dependencies
+                kid.name()
+            };
+            let version = kid.version();
+            parts.push(format!("{}@{}", name, version));
         }
+
+        parts.join(" / ")
     }
 
     /// Finds all dependency paths from any workspace member (root) to the given crate
@@ -489,6 +617,11 @@ impl SarifCollector {
             if let Node::Krate { krate, .. } = &graph[current] {
                 let mut path = current_path.clone();
                 path.insert(0, krate.id.clone());
+                // Reverse dependencies (everything after root) to get correct order: [root, dep1, dep2, ..., violating]
+                // This is more efficient than prepending during traversal
+                if path.len() > 1 {
+                    path[1..].reverse();
+                }
                 all_paths.push(path);
             }
             return;
