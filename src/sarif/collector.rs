@@ -159,15 +159,33 @@ impl SarifCollector {
                 locations
             };
 
-            // Add to diagnostics
-            self.diagnostics.push(DiagnosticData {
-                code,
-                krates: krates_list,
-                severity: diag.diag.severity,
-                message,
-                locations,
-                extra: diag.extra,
-            });
+            // Create one DiagnosticData per location
+            if locations.is_empty() {
+                // If no locations, still create one diagnostic without locations
+                self.diagnostics.push(DiagnosticData {
+                    code,
+                    krates: krates_list,
+                    severity: diag.diag.severity,
+                    message,
+                    locations: Vec::new(),
+                    extra: diag.extra,
+                });
+            } else {
+                // Create one DiagnosticData per location
+                for location in locations {
+                    self.diagnostics.push(DiagnosticData {
+                        code,
+                        krates: krates_list.clone(),
+                        severity: diag.diag.severity,
+                        message: Message {
+                            text: message.text.clone(),
+                            markdown: message.markdown.clone(),
+                        },
+                        locations: vec![location],
+                        extra: diag.extra.clone(),
+                    });
+                }
+            }
 
             // Add to rules if not already present
             self.rules.entry(code).or_insert(RuleData {
