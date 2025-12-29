@@ -146,8 +146,10 @@ impl Message {
 
 #[derive(Serialize)]
 pub struct Location {
-    #[serde(rename = "physicalLocation")]
-    pub physical_location: PhysicalLocation,
+    #[serde(rename = "physicalLocation", skip_serializing_if = "Option::is_none")]
+    pub physical_location: Option<PhysicalLocation>,
+    #[serde(rename = "logicalLocations")]
+    pub logical_locations: Vec<LogicalLocation>,
 }
 
 #[derive(Debug, Serialize)]
@@ -173,6 +175,26 @@ pub struct Region {
     pub snippet: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogicalLocation {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fully_qualified_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(default = "default_index")]
+    pub index: i32,
+    #[serde(default = "default_index")]
+    pub parent_index: i32,
+}
+
+#[allow(dead_code)]
+#[inline]
+fn default_index() -> i32 {
+    -1
 }
 
 /// Convert cargo-deny severity to SARIF level
