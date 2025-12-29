@@ -1,3 +1,4 @@
+mod advisory;
 mod collector;
 pub mod model;
 

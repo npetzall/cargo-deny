@@ -1,4 +1,5 @@
 use crate::diag::Extra;
+use crate::sarif::advisory;
 use crate::sarif::model::{
     DefaultConfiguration, Driver, Help, Location, Message, Result as SarifResult,
     Rule, RuleProperties, Run, SarifLog, TextContent, Tool,
@@ -45,155 +46,212 @@ impl Default for SarifCollector {
 impl SarifCollector {
     pub fn add_diagnostics(&mut self, pack: Pack, files: &crate::diag::Files, krates: Option<&Krates>) {
         for diag in pack {
-            let Some(code) = diag.code else {
-                return;
-            };
-
             // Filter out note and help severities - SARIF should only contain actionable issues
             if matches!(diag.diag.severity, Severity::Note | Severity::Help) {
-                return;
+                continue;
             }
 
-            let message = match &diag.extra {
-                None => Message::text(diag.diag.message),
-                Some(diag::Extra::Advisory(advisory)) => {
-                    let mut md = String::new();
-
-                    let meta = &advisory.metadata;
-
-                    // Format heading with ID and title on the same line
-                    md.push_str("# ");
-                    if let Some(url) = &meta.url {
-                        write!(&mut md, "[{}]({url})", meta.id).unwrap();
-                    } else {
-                        md.push_str(meta.id.as_str());
-                    }
-                    md.push_str(" - ");
-                    md.push_str(&meta.title);
-                    md.push_str("\n\n");
-
-                    // Description section
-                    md.push_str("## Description\n\n");
-                    md.push_str(&meta.description);
-                    md.push_str("\n\n");
-
-                    if !advisory.versions.unaffected().is_empty() {
-                        md.push_str("## Unaffected\n\n");
-                        for un in advisory.versions.unaffected() {
-                            writeln!(&mut md, "- `{un}`").unwrap();
-                        }
-                        md.push('\n');
-                    }
-
-                    if !advisory.versions.patched().is_empty() {
-                        md.push_str("## Patched\n\n");
-                        for un in advisory.versions.patched() {
-                            writeln!(&mut md, "- `{un}`").unwrap();
-                        }
-                        md.push('\n');
-                    }
-
-                    if let Some(affected) = &advisory.affected {
-                        md.push_str("## Affected\n\n");
-                        if !affected.functions.is_empty() {
-                            md.push_str("| Functions | Versions |\n|---|---|\n");
-                            for (path, reqs) in &affected.functions {
-                                write!(&mut md, "|`{path}`|").unwrap();
-
-                                for (i, req) in reqs.iter().enumerate() {
-                                    if i > 0 {
-                                        md.push_str(", ");
-                                    }
-
-                                    write!(&mut md, "`{req}`").unwrap();
-                                }
-
-                                md.push_str("|\n");
-                            }
-
-                            md.push('\n');
-                        }
-
-                        if !affected.arch.is_empty() {
-                            md.push_str("### Arches\n\n");
-                            for arch in &affected.arch {
-                                writeln!(&mut md, "- {}", arch.as_str()).unwrap();
-                            }
-                            md.push('\n');
-                        }
-
-                        if !affected.os.is_empty() {
-                            md.push_str("### Operating Systems\n\n");
-                            for os in &affected.os {
-                                writeln!(&mut md, "- {}", os.as_str()).unwrap();
-                            }
-                            md.push('\n');
-                        }
-                    }
-
-                    Message {
-                        text: meta.title.clone(),
-                        markdown: Some(md),
-                    }
+            let severity = diag.diag.severity;
+            let (diagnostics, code) = match diag.code {
+                None => continue,
+                Some(code @ DiagnosticCode::Advisory(_)) => {
+                    (self.add_advisory(diag, code, files, krates), code)
+                }
+                Some(code @ DiagnosticCode::License(_)) => {
+                    (self.add_license(diag, code, files, krates), code)
+                }
+                Some(code) => {
+                    (self.add_other(diag, code, files, krates), code)
                 }
             };
 
-            let locations: Vec<Location> = diag
-                .diag
-                .labels
-                .iter()
-                .filter_map(|label| files.sarif_location(label).ok())
-                .collect();
+            if !diagnostics.is_empty() {
+                self.diagnostics.extend(diagnostics);
+                self.add_rule_if_needed(code, severity);
+            }
+        }
+    }
 
-            let krates_list: smallvec::SmallVec<[Kid; 2]> = diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
+    /// Handles processing of advisory diagnostics, returning diagnostic data
+    fn add_advisory(
+        &self,
+        diag: diag::Diag,
+        code: DiagnosticCode,
+        files: &crate::diag::Files,
+        krates: Option<&Krates>,
+    ) -> Vec<DiagnosticData> {
+        let krates_list: smallvec::SmallVec<[Kid; 2]> = 
+            diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
 
-            let locations = if locations.is_empty() {
-                // Find root crates that depend on the violating crates
+        let (message, locations) = if let Some(diag::Extra::Advisory(advisory)) = &diag.extra {
+            advisory::process_advisory(
+                advisory,
+                &krates_list,
+                krates,
+                |krates_list, krates_ref| self.build_root_crate_locations(krates_list, krates_ref),
+            )
+        } else {
+            // Fallback for non-advisory (shouldn't happen in this function)
+            (Message::text(diag.diag.message.clone()), self.extract_locations(&diag, files))
+        };
+
+        self.create_diagnostic_data(code, diag.diag.severity, message, locations, krates_list, diag.extra)
+    }
+
+    /// Handles processing of license diagnostics, returning diagnostic data
+    fn add_license(
+        &self,
+        diag: diag::Diag,
+        code: DiagnosticCode,
+        files: &crate::diag::Files,
+        krates: Option<&Krates>,
+    ) -> Vec<DiagnosticData> {
+        let message = Message::text(diag.diag.message.clone());
+        let initial_locations = self.extract_locations(&diag, files);
+        let krates_list: smallvec::SmallVec<[Kid; 2]> = 
+            diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
+
+        let locations = self.resolve_locations(code, initial_locations, &krates_list, krates);
+
+        self.create_diagnostic_data(code, diag.diag.severity, message, locations, krates_list, diag.extra)
+    }
+
+    /// Handles processing of other diagnostic types (Bans, Sources, General, etc.), returning diagnostic data
+    fn add_other(
+        &self,
+        diag: diag::Diag,
+        code: DiagnosticCode,
+        files: &crate::diag::Files,
+        krates: Option<&Krates>,
+    ) -> Vec<DiagnosticData> {
+        let message = Message::text(diag.diag.message.clone());
+        let initial_locations = self.extract_locations(&diag, files);
+        let krates_list: smallvec::SmallVec<[Kid; 2]> = 
+            diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
+
+        let locations = self.resolve_locations(code, initial_locations, &krates_list, krates);
+
+        self.create_diagnostic_data(code, diag.diag.severity, message, locations, krates_list, diag.extra)
+    }
+
+    /// Extracts locations from diagnostic labels
+    fn extract_locations(&self, diag: &diag::Diag, files: &crate::diag::Files) -> Vec<Location> {
+        diag.diag
+            .labels
+            .iter()
+            .filter_map(|label| files.sarif_location(label).ok())
+            .collect()
+    }
+
+    /// Resolves locations based on diagnostic code type
+    fn resolve_locations(
+        &self,
+        code: DiagnosticCode,
+        initial_locations: Vec<Location>,
+        krates_list: &[Kid],
+        krates: Option<&Krates>,
+    ) -> Vec<Location> {
+        match code {
+            DiagnosticCode::Advisory(_) => {
+                // Advisory locations are handled in add_advisory via the advisory module
+                // This should not be called for advisories, but kept for safety
                 if let Some(krates_ref) = krates {
-                    self.build_root_crate_locations(&krates_list, krates_ref)
+                    self.build_root_crate_locations(krates_list, krates_ref)
                 } else {
-                    // Fallback: no locations if no graph available
                     Vec::new()
                 }
-            } else {
-                locations
-            };
-
-            // Create one DiagnosticData per location
-            if locations.is_empty() {
-                // If no locations, still create one diagnostic without locations
-                self.diagnostics.push(DiagnosticData {
-                    code,
-                    krates: krates_list,
-                    severity: diag.diag.severity,
-                    message,
-                    locations: Vec::new(),
-                    extra: diag.extra,
-                });
-            } else {
-                // Create one DiagnosticData per location
-                for location in locations {
-                    self.diagnostics.push(DiagnosticData {
-                        code,
-                        krates: krates_list.clone(),
-                        severity: diag.diag.severity,
-                        message: Message {
-                            text: message.text.clone(),
-                            markdown: message.markdown.clone(),
-                        },
-                        locations: vec![location],
-                        extra: diag.extra.clone(),
-                    });
-                }
             }
-
-            // Add to rules if not already present
-            self.rules.entry(code).or_insert(RuleData {
-                code,
-                severity: diag.diag.severity,
-                description: code.description(),
-            });
+            DiagnosticCode::License(_) => {
+                self.handle_license_locations(initial_locations, krates_list, krates)
+            }
+            _ => self.handle_default_locations(initial_locations, krates_list, krates),
         }
+    }
+
+    /// Handles location resolution for license diagnostics
+    /// Licenses may or may not have locations depending on the case
+    fn handle_license_locations(
+        &self,
+        initial_locations: Vec<Location>,
+        krates_list: &[Kid],
+        krates: Option<&Krates>,
+    ) -> Vec<Location> {
+        if initial_locations.is_empty() {
+            if let Some(krates_ref) = krates {
+                self.build_root_crate_locations(krates_list, krates_ref)
+            } else {
+                Vec::new()
+            }
+        } else {
+            initial_locations
+        }
+    }
+
+    /// Handles location resolution for other diagnostic types (Bans, Sources, etc.)
+    /// These should have locations from Cargo.toml, but fallback if needed
+    fn handle_default_locations(
+        &self,
+        initial_locations: Vec<Location>,
+        krates_list: &[Kid],
+        krates: Option<&Krates>,
+    ) -> Vec<Location> {
+        if initial_locations.is_empty() {
+            if let Some(krates_ref) = krates {
+                self.build_root_crate_locations(krates_list, krates_ref)
+            } else {
+                Vec::new()
+            }
+        } else {
+            initial_locations
+        }
+    }
+
+    /// Creates diagnostic data entries, returning them as a vector
+    fn create_diagnostic_data(
+        &self,
+        code: DiagnosticCode,
+        severity: Severity,
+        message: Message,
+        locations: Vec<Location>,
+        krates_list: smallvec::SmallVec<[Kid; 2]>,
+        extra: Option<diag::Extra>,
+    ) -> Vec<DiagnosticData> {
+        if locations.is_empty() {
+            // If no locations, still create one diagnostic without locations
+            vec![DiagnosticData {
+                code,
+                krates: krates_list,
+                severity,
+                message,
+                locations: Vec::new(),
+                extra,
+            }]
+        } else {
+            // Create one DiagnosticData per location
+            locations
+                .into_iter()
+                .map(|location| DiagnosticData {
+                    code,
+                    krates: krates_list.clone(),
+                    severity,
+                    message: Message {
+                        text: message.text.clone(),
+                        markdown: message.markdown.clone(),
+                    },
+                    locations: vec![location],
+                    extra: extra.clone(),
+                })
+                .collect()
+        }
+    }
+
+    /// Adds a rule to the rules map if it doesn't already exist
+    fn add_rule_if_needed(&mut self, code: DiagnosticCode, severity: Severity) {
+        self.rules.entry(code).or_insert(RuleData {
+            code,
+            severity,
+            description: code.description(),
+        });
     }
 
     pub fn generate_sarif(self) -> SarifLog {
