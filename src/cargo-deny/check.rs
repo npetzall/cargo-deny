@@ -551,7 +551,7 @@ fn print_diagnostics(
         let mut sc = cargo_deny::sarif::SarifCollector::default();
 
         for pack in rx {
-            sc.add_diagnostics(pack, files);
+            sc.add_diagnostics(pack, files, krates);
         }
 
         let sarif = sc.generate_sarif();

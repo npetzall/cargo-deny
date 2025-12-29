@@ -130,7 +130,7 @@ impl Files {
         use crate::sarif::model;
 
         Ok(model::Location {
-            physical_location: model::PhysicalLocation {
+            physical_location: Some(model::PhysicalLocation {
                 artifact_location: model::ArtifactLocation {
                     // These paths are machine specific, which _usually_ won't matter in most
                     // CI systems since the paths won't change
@@ -147,7 +147,8 @@ impl Files {
                     }),
                     message: (!label.message.is_empty()).then(|| model::Message::text(label.message.clone())),
                 },
-            },
+            }),
+            logical_locations: Vec::new(),
         })
     }
 

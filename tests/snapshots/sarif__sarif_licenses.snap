@@ -11,6 +11,7 @@ expression: s
           "level": "warning",
           "locations": [
             {
+              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
@@ -42,6 +43,7 @@ expression: s
           "level": "error",
           "locations": [
             {
+              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
@@ -57,6 +59,7 @@ expression: s
               }
             },
             {
+              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
@@ -75,6 +78,7 @@ expression: s
               }
             },
             {
+              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
@@ -93,6 +97,7 @@ expression: s
               }
             },
             {
+              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
@@ -111,6 +116,7 @@ expression: s
               }
             },
             {
+              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"

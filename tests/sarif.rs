@@ -40,7 +40,7 @@ where
                 crossbeam::select! {
                     recv(rx) -> msg => {
                         if let Ok(pack) = msg {
-                            sarif.add_diagnostics(pack, &ctx.files);
+                            sarif.add_diagnostics(pack, &ctx.files, Some(&ctx.krates));
                         } else {
                             // Yay, the sender was dropped (i.e. check was finished)
                             break;
@@ -64,11 +64,9 @@ where
     // so rather than try and fail, just redact manually
     for res in &mut sl.runs[0].results {
         for loc in &mut res.locations {
-            loc.physical_location.artifact_location.uri = loc
-                .physical_location
-                .artifact_location
-                .uri
-                .replace(root.as_str(), "{CWD}");
+            if let Some(physical_location) = &mut loc.physical_location {
+                physical_location.artifact_location.uri = physical_location.artifact_location.uri.replace(root.as_str(), "{CWD}");
+            }
         }
 
         for fp in res.partial_fingerprints.values_mut() {
