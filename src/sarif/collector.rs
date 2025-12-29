@@ -293,6 +293,7 @@ impl SarifCollector {
 
     /// Builds locations pointing to root crates that depend on the violating crates
     /// Each root crate gets its own Location with physical_location pointing to the root crate's Cargo.toml
+    /// If a dependency uses `workspace = true`, the location points to the workspace manifest instead
     fn build_root_crate_locations(
         &self,
         violating_krates: &[Kid],
@@ -300,6 +301,8 @@ impl SarifCollector {
     ) -> Vec<Location> {
         let mut locations = Vec::new();
         let mut seen_roots = HashSet::new();
+        // Deduplicate by physical location URI + region
+        let mut seen_locations = HashSet::new();
 
         for kid in violating_krates {
             // Find all dependency paths from any root to this violating crate
@@ -327,7 +330,7 @@ impl SarifCollector {
                 // The path is already in correct order: [root, dep1, dep2, ..., violating_crate]
                 // Find dep1 (the first dependency in the path) in the root crate's manifest
                 // Only check dep1 - if it's not directly declared in root, we can't find it
-                let (dep_info, dep1_manifest_name) = if path.len() > 1 {
+                let (dep_info, dep1_manifest_name, manifest_path_to_use) = if path.len() > 1 {
                     let dep1_kid = &path[1];
                     if let Some(root_nid) = krates.nid_for_kid(root_kid) {
                         // Check if dep1 is directly declared in the root crate
@@ -341,34 +344,66 @@ impl SarifCollector {
                                     .filter(|resolved_kid| resolved_kid.id == *dep1_kid)
                                     .map(|_| dep.name.as_str())
                             })
-                            .map(|dep_name| {
-                                // Found dep1 in root's deps, now find it in the manifest
-                                let manifest_info = self.find_dependency_in_manifest(
+                            .and_then(|dep_name| {
+                                // Check if this dependency uses workspace = true
+                                let is_workspace_dep = self.check_if_workspace_dependency(
                                     root_krate.manifest_path.as_std_path(),
                                     dep_name,
                                 );
-                                (manifest_info, Some(dep_name))
+                                
+                                let (manifest_info, manifest_path) = if is_workspace_dep {
+                                    // Look in workspace manifest
+                                    let workspace_manifest = krates.workspace_root().join("Cargo.toml");
+                                    let info = self.find_workspace_dependency_in_manifest(
+                                        workspace_manifest.as_std_path(),
+                                        dep_name,
+                                    );
+                                    (info, workspace_manifest)
+                                } else {
+                                    // Look in root crate manifest
+                                    let info = self.find_dependency_in_manifest(
+                                        root_krate.manifest_path.as_std_path(),
+                                        dep_name,
+                                    );
+                                    (info, root_krate.manifest_path.clone())
+                                };
+                                
+                                Some((manifest_info, Some(dep_name), manifest_path))
                             })
-                            .unwrap_or((None, None))
+                            .unwrap_or((None, None, root_krate.manifest_path.clone()))
                     } else {
-                        (None, None)
+                        (None, None, root_krate.manifest_path.clone())
                     }
                 } else {
-                    (None, None)
+                    (None, None, root_krate.manifest_path.clone())
                 };
 
                 // Build dependency path message: root / dep1 / dep2 / ... / violating_crate
                 let path_message = self.build_dependency_path_message(&path, dep1_manifest_name);
 
-                // Create Location with physical location pointing to root's Cargo.toml
+                // Create Location with physical location pointing to root's Cargo.toml or workspace manifest
                 let (start_line, snippet, byte_offset, byte_length) = dep_info
                     .map(|(line, snip, offset, length)| (line, Some(snip), offset, length))
                     .unwrap_or((1, None, 0, 0));
 
+                // Create location key for deduplication (URI + region)
+                let location_key = format!(
+                    "{}:{}:{}:{}",
+                    manifest_path_to_use,
+                    start_line,
+                    byte_offset,
+                    byte_length
+                );
+
+                // Skip if we've already created a location for this exact position
+                if !seen_locations.insert(location_key) {
+                    continue;
+                }
+
                 locations.push(Location {
                     physical_location: Some(crate::sarif::model::PhysicalLocation {
                         artifact_location: crate::sarif::model::ArtifactLocation {
-                            uri: format!("file://{}", root_krate.manifest_path),
+                            uri: format!("file://{}", manifest_path_to_use),
                         },
                         region: crate::sarif::model::Region {
                             start_line,
@@ -525,6 +560,115 @@ impl SarifCollector {
             .trim_end()
             .to_string();
 
+        Some((line_number, line_content, byte_offset, byte_length))
+    }
+
+    /// Checks if a dependency declaration uses `workspace = true`
+    fn check_if_workspace_dependency(
+        &self,
+        manifest_path: &std::path::Path,
+        dep_name: &str,
+    ) -> bool {
+        let contents = match std::fs::read_to_string(manifest_path) {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+        
+        let root = match toml_span::parse(&contents) {
+            Ok(r) => r,
+            Err(_) => return false,
+        };
+        
+        // Check all dependency sections for this dependency
+        let sections = [
+            "/dependencies",
+            "/dev-dependencies",
+            "/build-dependencies",
+        ];
+        
+        for section in sections {
+            if let Some(dep_table) = root.pointer(section) {
+                if let Some(table) = dep_table.as_table() {
+                    if let Some((_, dep_value)) = table.get_key_value(dep_name) {
+                        // Check if it's a table with workspace = true
+                        if let Some(dep_table) = dep_value.as_table() {
+                            if let Some(workspace_val) = dep_table.get("workspace") {
+                                if let Some(true) = workspace_val.as_bool() {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Also check target-specific sections
+        if let Some(targets) = root.pointer("/target") {
+            if let Some(targets_table) = targets.as_table() {
+                for (_target_key, target_value) in targets_table.iter() {
+                    if let Some(target_table) = target_value.as_table() {
+                        for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
+                            if let Some(deps_table) = target_table.get(section) {
+                                if let Some(deps_table) = deps_table.as_table() {
+                                    if let Some((_, dep_value)) = deps_table.get_key_value(dep_name) {
+                                        if let Some(dep_table) = dep_value.as_table() {
+                                            if let Some(workspace_val) = dep_table.get("workspace") {
+                                                if let Some(true) = workspace_val.as_bool() {
+                                                    return true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        false
+    }
+
+    /// Finds a dependency in the [workspace.dependencies] section
+    fn find_workspace_dependency_in_manifest(
+        &self,
+        manifest_path: &std::path::Path,
+        dep_name: &str,
+    ) -> Option<(usize, String, usize, usize)> {
+        let contents = std::fs::read_to_string(manifest_path).ok()?;
+        let root = toml_span::parse(&contents).ok()?;
+        
+        // Look in [workspace.dependencies]
+        let workspace_deps = root.pointer("/workspace/dependencies")?;
+        let table = workspace_deps.as_table()?;
+        let (key, dep_value) = table.get_key_value(dep_name)?;
+        
+        let key_span = key.span;
+        let value_span = dep_value.span;
+        
+        let byte_offset = key_span.start;
+        let byte_length = value_span.end - key_span.start;
+        
+        let line_number = contents[..byte_offset.min(contents.len())]
+            .chars()
+            .filter(|&c| c == '\n')
+            .count()
+            + 1;
+        
+        let line_end = contents[byte_offset..]
+            .find('\n')
+            .map(|pos| byte_offset + pos + 1)
+            .unwrap_or(contents.len());
+        let line_start = contents[..byte_offset]
+            .rfind('\n')
+            .map(|pos| pos + 1)
+            .unwrap_or(0);
+        let line_content = contents[line_start..line_end.min(contents.len())]
+            .trim_end()
+            .to_string();
+        
         Some((line_number, line_content, byte_offset, byte_length))
     }
 
