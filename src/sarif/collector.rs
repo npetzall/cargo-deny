@@ -61,23 +61,24 @@ impl SarifCollector {
 
                     let meta = &advisory.metadata;
 
+                    // Format heading with ID and title on the same line
                     md.push_str("# ");
                     if let Some(url) = &meta.url {
                         write!(&mut md, "[{}]({url})", meta.id).unwrap();
                     } else {
                         md.push_str(meta.id.as_str());
                     }
-
-                    md.push('\n');
+                    md.push_str(" - ");
                     md.push_str(&meta.title);
-                    md.push('\n');
+                    md.push_str("\n\n");
 
-                    md.push_str("## Description\n");
+                    // Description section
+                    md.push_str("## Description\n\n");
                     md.push_str(&meta.description);
                     md.push_str("\n\n");
 
                     if !advisory.versions.unaffected().is_empty() {
-                        md.push_str("## Unaffected\n");
+                        md.push_str("## Unaffected\n\n");
                         for un in advisory.versions.unaffected() {
                             writeln!(&mut md, "- `{un}`").unwrap();
                         }
@@ -85,7 +86,7 @@ impl SarifCollector {
                     }
 
                     if !advisory.versions.patched().is_empty() {
-                        md.push_str("## Patched\n");
+                        md.push_str("## Patched\n\n");
                         for un in advisory.versions.patched() {
                             writeln!(&mut md, "- `{un}`").unwrap();
                         }
@@ -93,7 +94,7 @@ impl SarifCollector {
                     }
 
                     if let Some(affected) = &advisory.affected {
-                        md.push_str("## Affected\n");
+                        md.push_str("## Affected\n\n");
                         if !affected.functions.is_empty() {
                             md.push_str("| Functions | Versions |\n|---|---|\n");
                             for (path, reqs) in &affected.functions {
@@ -114,21 +115,17 @@ impl SarifCollector {
                         }
 
                         if !affected.arch.is_empty() {
-                            md.push_str("### Arches\n");
+                            md.push_str("### Arches\n\n");
                             for arch in &affected.arch {
-                                md.push_str("- ");
-                                md.push_str(arch.as_str());
-                                md.push('\n');
+                                writeln!(&mut md, "- {}", arch.as_str()).unwrap();
                             }
                             md.push('\n');
                         }
 
                         if !affected.os.is_empty() {
-                            md.push_str("### Operating Systems\n");
+                            md.push_str("### Operating Systems\n\n");
                             for os in &affected.os {
-                                md.push_str("- ");
-                                md.push_str(os.as_str());
-                                md.push('\n');
+                                writeln!(&mut md, "- {}", os.as_str()).unwrap();
                             }
                             md.push('\n');
                         }
