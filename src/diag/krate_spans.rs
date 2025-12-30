@@ -286,6 +286,68 @@ impl<'k> Manifest<'k> {
                     == 0
         })
     }
+
+    /// Gets the span for the [package] section using toml_span.
+    /// Returns the span from [package] to the next section or EOF.
+    /// Returns None if the manifest content cannot be parsed or the package section is not found.
+    pub fn package_section_span(&self, files: &Files) -> Option<std::ops::Range<usize>> {
+        let manifest = files.source(self.id);
+        get_package_section_span(manifest)
+    }
+}
+
+/// Gets the span for the [package] section using toml_span.
+/// Returns the span from [package] to the next section or EOF.
+/// Returns None if the manifest content cannot be parsed or the package section is not found.
+pub fn get_package_section_span(manifest: &str) -> Option<std::ops::Range<usize>> {
+    // Try to parse with toml_span to get the [package] section span
+    let root = toml_span::parse(manifest).ok()?;
+    let package_value = root.pointer("/package")?;
+    let table = package_value.as_table()?;
+    
+    // Get the first and last spans in the table to determine section boundaries
+    let mut first_span: Option<toml_span::Span> = None;
+    let mut last_span: Option<toml_span::Span> = None;
+    
+    for (key, value) in table.iter() {
+        let key_start = key.span.start;
+        let value_end = value.span.end;
+        
+        if first_span.is_none() || key_start < first_span.unwrap().start {
+            first_span = Some(toml_span::Span { start: key_start, end: key_start });
+        }
+        if last_span.is_none() || value_end > last_span.unwrap().end {
+            last_span = Some(toml_span::Span { start: value_end, end: value_end });
+        }
+    }
+    
+    let (first, last) = (first_span?, last_span?);
+    
+    // Find the [package] header before the first key
+    let span_start = manifest[..first.start]
+        .rfind("[package]")
+        .filter(|&pos| {
+            // Verify it's a standalone [package] section
+            manifest.get(pos + 8..pos + 9).map_or(false, |c| c == "]")
+        })?;
+    
+    // Find the end - look for next section or use the end of the last value
+    let after_last_value = last.end;
+    let span_end = manifest[after_last_value..]
+        .match_indices("\n[")
+        .find_map(|(pos, _)| {
+            let line_start = after_last_value + pos + 1;
+            let line_rest = manifest.get(line_start..)?;
+            // Check if it's a new section (not [package.*)
+            if !line_rest.starts_with("[package.") {
+                Some(line_start)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(manifest.len());  // EOF if no next section found
+    
+    Some(span_start..span_end)
 }
 
 pub struct LockSpan {

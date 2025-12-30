@@ -1,22 +1,9 @@
-use crate::sarif::model::{Location, Message};
-use crate::{Kid, Krates};
+use crate::sarif::model::Message;
 use rustsec::advisory::Advisory;
 use std::fmt::Write as _;
 
-/// Processes an advisory diagnostic and returns the formatted message and resolved locations
-pub(crate) fn process_advisory(
-    advisory: &Advisory,
-    krates_list: &[Kid],
-    krates: Option<&Krates>,
-    build_locations: impl FnOnce(&[Kid], &Krates) -> Vec<Location>,
-) -> (Message, Vec<Location>) {
-    let message = format_advisory_message(advisory);
-    let locations = resolve_advisory_locations(krates_list, krates, build_locations);
-    (message, locations)
-}
-
 /// Formats an advisory diagnostic with detailed markdown
-fn format_advisory_message(advisory: &Advisory) -> Message {
+pub(crate) fn format_advisory_message(advisory: &Advisory) -> Message {
     let mut md = String::new();
     let meta = &advisory.metadata;
 
@@ -90,21 +77,6 @@ fn format_advisory_message(advisory: &Advisory) -> Message {
     Message {
         text: meta.title.clone(),
         markdown: Some(md),
-    }
-}
-
-/// Resolves locations for advisory diagnostics
-/// Advisories point to Cargo.lock which gets filtered out by sarif_location,
-/// so we always use fallback to root crate locations
-fn resolve_advisory_locations(
-    krates_list: &[Kid],
-    krates: Option<&Krates>,
-    build_locations: impl FnOnce(&[Kid], &Krates) -> Vec<Location>,
-) -> Vec<Location> {
-    if let Some(krates_ref) = krates {
-        build_locations(krates_list, krates_ref)
-    } else {
-        Vec::new()
     }
 }
 

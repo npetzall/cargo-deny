@@ -483,6 +483,7 @@ impl Gatherer {
         krates: &'k crate::Krates,
         files: &mut Files,
         cfg: Option<&ValidConfig>,
+        krate_spans: Option<&'k crate::diag::KrateSpans<'k>>,
     ) -> Summary<'k> {
         let mut summary = Summary::new(self.store);
 
@@ -728,15 +729,39 @@ impl Gatherer {
                 } else {
                     // License field is missing, point to [package] section
                     let files = files_lock.read();
-                    let (file_id, span) = if let Some(file_id) = files.id_for_path(&krate.manifest_path) {
+                    let (file_id, span) = if let Some(krate_spans) = krate_spans {
+                        // Try to use krate_spans if available
+                        if let Some(manifest) = krate_spans.manifest(&krate.id) {
+                            if let Some(span) = manifest.package_section_span(&files) {
+                                (manifest.id, span)
+                            } else {
+                                (manifest.id, 0..1)
+                            }
+                        } else if let Some(file_id) = files.id_for_path(&krate.manifest_path) {
+                            let manifest = files.source(file_id);
+                            crate::diag::get_package_section_span(manifest)
+                                .map(|s| (file_id, s))
+                                .unwrap_or((file_id, 0..1))
+                        } else {
+                            drop(files);
+                            let manifest = std::fs::read_to_string(&krate.manifest_path)
+                                .unwrap_or_else(|_| format!(
+                                    "[package]\nname = \"{}\"\nversion = \"{}\"\n",
+                                    krate.name,
+                                    krate.version,
+                                ));
+                            let file_id = files_lock.write().add(&krate.manifest_path, manifest.clone());
+                            crate::diag::get_package_section_span(&manifest)
+                                .map(|s| (file_id, s))
+                                .unwrap_or((file_id, 0..1))
+                        }
+                    } else if let Some(file_id) = files.id_for_path(&krate.manifest_path) {
                         let manifest = files.source(file_id);
-                        // Use toml_span to get the package section span
-                        Self::get_package_section_span(manifest)
+                        crate::diag::get_package_section_span(manifest)
                             .map(|s| (file_id, s))
                             .unwrap_or((file_id, 0..1))
                     } else {
                         drop(files);
-                        // File not loaded, read it and add it
                         let manifest = std::fs::read_to_string(&krate.manifest_path)
                             .unwrap_or_else(|_| format!(
                                 "[package]\nname = \"{}\"\nversion = \"{}\"\n",
@@ -744,8 +769,7 @@ impl Gatherer {
                                 krate.version,
                             ));
                         let file_id = files_lock.write().add(&krate.manifest_path, manifest.clone());
-                        // Use toml_span to get the package section span
-                        Self::get_package_section_span(&manifest)
+                        crate::diag::get_package_section_span(&manifest)
                             .map(|s| (file_id, s))
                             .unwrap_or((file_id, 0..1))
                     };
@@ -855,15 +879,39 @@ impl Gatherer {
 
                 // License couldn't be determined, point to [package] section
                 let files = files_lock.read();
-                let (file_id, span) = if let Some(file_id) = files.id_for_path(&krate.manifest_path) {
+                let (file_id, span) = if let Some(krate_spans) = krate_spans {
+                    // Try to use krate_spans if available
+                    if let Some(manifest) = krate_spans.manifest(&krate.id) {
+                        if let Some(span) = manifest.package_section_span(&files) {
+                            (manifest.id, span)
+                        } else {
+                            (manifest.id, 0..1)
+                        }
+                    } else if let Some(file_id) = files.id_for_path(&krate.manifest_path) {
+                        let manifest = files.source(file_id);
+                        crate::diag::get_package_section_span(manifest)
+                            .map(|s| (file_id, s))
+                            .unwrap_or((file_id, 0..1))
+                    } else {
+                        drop(files);
+                        let manifest = std::fs::read_to_string(&krate.manifest_path)
+                            .unwrap_or_else(|_| format!(
+                                "[package]\nname = \"{}\"\nversion = \"{}\"\n",
+                                krate.name,
+                                krate.version,
+                            ));
+                        let file_id = files_lock.write().add(&krate.manifest_path, manifest.clone());
+                        crate::diag::get_package_section_span(&manifest)
+                            .map(|s| (file_id, s))
+                            .unwrap_or((file_id, 0..1))
+                    }
+                } else if let Some(file_id) = files.id_for_path(&krate.manifest_path) {
                     let manifest = files.source(file_id);
-                    // Use toml_span to get the package section span
-                    Self::get_package_section_span(manifest)
+                    crate::diag::get_package_section_span(manifest)
                         .map(|s| (file_id, s))
                         .unwrap_or((file_id, 0..1))
                 } else {
                     drop(files);
-                    // File not loaded, read it and add it
                     let manifest = std::fs::read_to_string(&krate.manifest_path)
                         .unwrap_or_else(|_| format!(
                             "[package]\nname = \"{}\"\nversion = \"{}\"\n",
@@ -871,8 +919,7 @@ impl Gatherer {
                             krate.version,
                         ));
                     let file_id = files_lock.write().add(&krate.manifest_path, manifest.clone());
-                    // Use toml_span to get the package section span
-                    Self::get_package_section_span(&manifest)
+                    crate::diag::get_package_section_span(&manifest)
                         .map(|s| (file_id, s))
                         .unwrap_or((file_id, 0..1))
                 };
@@ -904,58 +951,6 @@ impl Gatherer {
         summary
     }
 
-    /// Gets the span for the [package] section using toml_span.
-    /// Returns the span from [package] to the next section or EOF.
-    fn get_package_section_span(manifest: &str) -> Option<std::ops::Range<usize>> {
-        // Try to parse with toml_span to get the [package] section span
-        let root = toml_span::parse(manifest).ok()?;
-        let package_value = root.pointer("/package")?;
-        let table = package_value.as_table()?;
-        
-        // Get the first and last spans in the table to determine section boundaries
-        let mut first_span: Option<toml_span::Span> = None;
-        let mut last_span: Option<toml_span::Span> = None;
-        
-        for (key, value) in table.iter() {
-            let key_start = key.span.start;
-            let value_end = value.span.end;
-            
-            if first_span.is_none() || key_start < first_span.unwrap().start {
-                first_span = Some(toml_span::Span { start: key_start, end: key_start });
-            }
-            if last_span.is_none() || value_end > last_span.unwrap().end {
-                last_span = Some(toml_span::Span { start: value_end, end: value_end });
-            }
-        }
-        
-        let (first, last) = (first_span?, last_span?);
-        
-        // Find the [package] header before the first key
-        let span_start = manifest[..first.start]
-            .rfind("[package]")
-            .filter(|&pos| {
-                // Verify it's a standalone [package] section
-                manifest.get(pos + 8..pos + 9).map_or(false, |c| c == "]")
-            })?;
-        
-        // Find the end - look for next section or use the end of the last value
-        let after_last_value = last.end;
-        let span_end = manifest[after_last_value..]
-            .match_indices("\n[")
-            .find_map(|(pos, _)| {
-                let line_start = after_last_value + pos + 1;
-                let line_rest = manifest.get(line_start..)?;
-                // Check if it's a new section (not [package.*)
-                if !line_rest.starts_with("[package.") {
-                    Some(line_start)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(manifest.len());  // EOF if no next section found
-        
-        Some(span_start..span_end)
-    }
 
     #[inline]
     fn range(expr: &regex::Regex, manifest: &str) -> Option<std::ops::Range<usize>> {

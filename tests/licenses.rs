@@ -28,7 +28,7 @@ fn setup<'k>(
         .with_store(store())
         .with_confidence_threshold(0.8);
 
-    let summary = gatherer.gather(ctx.krates, &mut ctx.files, Some(&ctx.valid_cfg));
+    let summary = gatherer.gather(ctx.krates, &mut ctx.files, Some(&ctx.valid_cfg), Some(&ctx.spans));
     (ctx, summary)
 }
 

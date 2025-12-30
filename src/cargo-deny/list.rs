@@ -85,7 +85,7 @@ pub fn cmd(
 
     let mut files = Files::new();
 
-    let summary = gatherer.gather(&krates, &mut files, None);
+    let summary = gatherer.gather(&krates, &mut files, None, None);
 
     use std::borrow::Cow;
 

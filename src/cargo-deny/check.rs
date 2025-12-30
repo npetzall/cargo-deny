@@ -303,7 +303,7 @@ pub(crate) fn cmd(
             .with_store(std::sync::Arc::new(store))
             .with_confidence_threshold(licenses.confidence_threshold);
 
-        Some(gatherer.gather(&krates, &mut files, Some(&licenses)))
+        Some(gatherer.gather(&krates, &mut files, Some(&licenses), Some(&krate_spans)))
     } else {
         None
     };
@@ -361,6 +361,7 @@ pub(crate) fn cmd(
                 files,
                 &mut stats,
                 feature_depth,
+                Some(&krate_spans),
             );
         });
 
@@ -537,13 +538,14 @@ pub(crate) fn cmd(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn print_diagnostics(
+fn print_diagnostics<'k>(
     rx: crossbeam::channel::Receiver<cargo_deny::diag::Pack>,
     log_ctx: crate::common::LogContext,
     krates: Option<&cargo_deny::Krates>,
     files: &Files,
     stats: &mut AllStats,
     feature_depth: Option<u32>,
+    krate_spans: Option<&'k cargo_deny::diag::KrateSpans<'k>>,
 ) {
     use cargo_deny::diag::Check;
 
@@ -551,7 +553,7 @@ fn print_diagnostics(
         let mut sc = cargo_deny::sarif::SarifCollector::default();
 
         for pack in rx {
-            sc.add_diagnostics(pack, files, krates);
+            sc.add_diagnostics(pack, files, krates, krate_spans);
         }
 
         let sarif = sc.generate_sarif();

@@ -28,103 +28,31 @@ use bitvec::prelude::*;
 /// Returns (file_id, span) where span points to the [package] section header.
 /// Falls back to (0, 0..1) if the file isn't loaded or the section can't be found.
 fn get_package_section_span(
-    files: &crate::diag::Files,
+    ctx: &crate::CheckCtx<'_, cfg::ValidConfig>,
     krate: &crate::Krate,
 ) -> (crate::diag::FileId, std::ops::Range<usize>) {
-    // Try to get the file_id from the manifest path
-    let file_id = match files.id_for_path(&krate.manifest_path) {
+    // Try to use krate_spans if available
+    if let Some(manifest) = ctx.krate_spans.manifest(&krate.id) {
+        if let Some(span) = manifest.package_section_span(ctx.files) {
+            return (manifest.id, span);
+        }
+    }
+    
+    // Fallback: try to get the file_id from the manifest path
+    let file_id = match ctx.files.id_for_path(&krate.manifest_path) {
         Some(id) => id,
         None => return (0, 0..1),
     };
     
     // Get the manifest content
-    let manifest = files.source(file_id);
+    let manifest = ctx.files.source(file_id);
     
-    // Try to parse with toml_span to get the [package] section span
-    if let Ok(root) = toml_span::parse(manifest) {
-        if let Some(package_value) = root.pointer("/package") {
-            if let Some(table) = package_value.as_table() {
-                // Get the first and last spans in the table to determine section boundaries
-                let mut first_span: Option<toml_span::Span> = None;
-                let mut last_span: Option<toml_span::Span> = None;
-                
-                for (key, value) in table.iter() {
-                    let key_start = key.span.start;
-                    let value_end = value.span.end;
-                    
-                    if first_span.is_none() || key_start < first_span.unwrap().start {
-                        first_span = Some(toml_span::Span { start: key_start, end: key_start });
-                    }
-                    if last_span.is_none() || value_end > last_span.unwrap().end {
-                        last_span = Some(toml_span::Span { start: value_end, end: value_end });
-                    }
-                }
-                
-                if let (Some(first), Some(last)) = (first_span, last_span) {
-                    // Find the [package] header before the first key
-                    if let Some(span_start) = manifest[..first.start]
-                        .rfind("[package]")
-                        .filter(|&pos| {
-                            // Verify it's a standalone [package] section
-                            manifest.get(pos + 8..pos + 9).map_or(false, |c| c == "]")
-                        }) {
-                        // Find the end - look for next section or use the end of the last value
-                        let after_last_value = last.end;
-                        let span_end = manifest[after_last_value..]
-                            .match_indices("\n[")
-                            .find_map(|(pos, _)| {
-                                let line_start = after_last_value + pos + 1;
-                                let line_rest = manifest.get(line_start..)?;
-                                // Check if it's a new section (not [package.*)
-                                if !line_rest.starts_with("[package.") {
-                                    Some(line_start)
-                                } else {
-                                    None
-                                }
-                            })
-                            .unwrap_or(manifest.len());  // EOF if no next section found
-                        
-                        return (file_id, span_start..span_end);
-                    }
-                }
-            }
-        }
+    // Use the shared function to get the package section span
+    if let Some(span) = crate::diag::get_package_section_span(manifest) {
+        (file_id, span)
+    } else {
+        (file_id, 0..1)
     }
-    
-    // Fallback: search for [package] manually (standalone section header)
-    if let Some(span_start) = manifest.find("[package]") {
-        // Check if it's a standalone [package] section
-        // "[package]" is 9 chars, so ']' is at span_start + 8
-        if manifest.get(span_start + 8..span_start + 9)
-            .map_or(false, |c| c == "]") {
-            // Find the end of the [package] section - look for next section or EOF
-            // Start searching after the [package] line
-            let after_package_line = manifest[span_start..]
-                .find('\n')
-                .map(|pos| span_start + pos + 1)
-                .unwrap_or(span_start + 9);
-            
-            // Look for the next section header (a line starting with '[' that's not [package.*)
-            // Search for '\n[' pattern and check if it's not [package.*
-            let span_end = manifest[after_package_line..]
-                .match_indices("\n[")
-                .find_map(|(pos, _)| {
-                    let line_start = after_package_line + pos + 1;
-                    let line_rest = manifest.get(line_start..)?;
-                    // Check if it's a new section (not [package.*)
-                    if !line_rest.starts_with("[package.") {
-                        Some(line_start)
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or(manifest.len());  // EOF if no next section found
-            
-            return (file_id, span_start..span_end);
-        }
-    }
-    
-    (file_id, 0..1)
 }
 
 struct Hits {
@@ -394,7 +322,7 @@ pub fn check(
             }
             LicenseInfo::Unlicensed => {
                 // Point to the [package] section since the license field is missing
-                let (file_id, span) = get_package_section_span(ctx.files, krate);
+                let (file_id, span) = get_package_section_span(&ctx, krate);
                 pack.push(diags::Unlicensed {
                     severity: Severity::Error,
                     krate_name: krate.name.clone(),

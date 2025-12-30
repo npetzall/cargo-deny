@@ -6,7 +6,7 @@ use crate::sarif::model::{
 };
 use crate::{
     Kid, Krates,
-    diag::{self, DiagnosticCode, InclusionGrapher, Pack, Severity, write_graph_as_text},
+    diag::{self, DiagnosticCode, InclusionGrapher, KrateSpans, Pack, Severity, Files, write_graph_as_text},
 };
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
@@ -44,7 +44,7 @@ impl Default for SarifCollector {
 }
 
 impl SarifCollector {
-    pub fn add_diagnostics(&mut self, pack: Pack, files: &crate::diag::Files, krates: Option<&Krates>) {
+    pub fn add_diagnostics<'k>(&mut self, pack: Pack, files: &crate::diag::Files, krates: Option<&Krates>, krate_spans: Option<&'k KrateSpans<'k>>) {
         for diag in pack {
             // Filter out note and help severities - SARIF should only contain actionable issues
             if matches!(diag.diag.severity, Severity::Note | Severity::Help) {
@@ -55,13 +55,13 @@ impl SarifCollector {
             let (diagnostics, code) = match diag.code {
                 None => continue,
                 Some(code @ DiagnosticCode::Advisory(_)) => {
-                    (self.add_advisory(diag, code, files, krates), code)
+                    (self.add_advisory(diag, code, files, krates, krate_spans), code)
                 }
                 Some(code @ DiagnosticCode::License(_)) => {
-                    (self.add_license(diag, code, files, krates), code)
+                    (self.add_license(diag, code, files, krates, krate_spans), code)
                 }
                 Some(code) => {
-                    (self.add_other(diag, code, files, krates), code)
+                    (self.add_other(diag, code, files, krates, krate_spans), code)
                 }
             };
 
@@ -73,23 +73,24 @@ impl SarifCollector {
     }
 
     /// Handles processing of advisory diagnostics, returning diagnostic data
-    fn add_advisory(
+    fn add_advisory<'k>(
         &self,
         diag: diag::Diag,
         code: DiagnosticCode,
         files: &crate::diag::Files,
         krates: Option<&Krates>,
+        krate_spans: Option<&'k KrateSpans<'k>>,
     ) -> Vec<DiagnosticData> {
         let krates_list: smallvec::SmallVec<[Kid; 2]> = 
             diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
 
         let (mut message, locations) = if let Some(diag::Extra::Advisory(advisory)) = &diag.extra {
-            advisory::process_advisory(
-                advisory,
-                &krates_list,
-                krates,
-                |krates_list, krates_ref| self.build_root_crate_locations(krates_list, krates_ref),
-            )
+            let locations = if let (Some(krates_ref), Some(krate_spans_ref)) = (krates, krate_spans) {
+                self.build_root_crate_locations(&krates_list, krates_ref, krate_spans_ref, files)
+            } else {
+                Vec::new()
+            };
+            (advisory::format_advisory_message(advisory), locations)
         } else {
             // Fallback for non-advisory (shouldn't happen in this function)
             (Message::text(diag.diag.message.clone()), self.extract_locations(&diag, files))
@@ -102,12 +103,13 @@ impl SarifCollector {
     }
 
     /// Handles processing of license diagnostics, returning diagnostic data
-    fn add_license(
+    fn add_license<'k>(
         &self,
         diag: diag::Diag,
         code: DiagnosticCode,
         files: &crate::diag::Files,
         krates: Option<&Krates>,
+        krate_spans: Option<&'k KrateSpans<'k>>,
     ) -> Vec<DiagnosticData> {
         let krates_list: smallvec::SmallVec<[Kid; 2]> = 
             diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
@@ -122,9 +124,9 @@ impl SarifCollector {
         let locations = if let Some(loc) = location {
             vec![loc]
         } else {
-            // Fall back to root crate locations if we have krates information
-            if let Some(krates_ref) = krates {
-                self.build_root_crate_locations(&krates_list, krates_ref)
+            // Fall back to root crate locations if we have krates and krate_spans information
+            if let (Some(krates_ref), Some(krate_spans_ref)) = (krates, krate_spans) {
+                self.build_root_crate_locations(&krates_list, krates_ref, krate_spans_ref, files)
             } else {
                 Vec::new()
             }
@@ -269,19 +271,20 @@ impl SarifCollector {
     }
 
     /// Handles processing of other diagnostic types (Bans, Sources, General, etc.), returning diagnostic data
-    fn add_other(
+    fn add_other<'k>(
         &self,
         diag: diag::Diag,
         code: DiagnosticCode,
         files: &crate::diag::Files,
         krates: Option<&Krates>,
+        krate_spans: Option<&'k KrateSpans<'k>>,
     ) -> Vec<DiagnosticData> {
         let mut message = Message::text(diag.diag.message.clone());
         let initial_locations = self.extract_locations(&diag, files);
         let krates_list: smallvec::SmallVec<[Kid; 2]> = 
             diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
 
-        let locations = self.handle_default_locations(initial_locations, &krates_list, krates);
+        let locations = self.handle_default_locations(initial_locations, &krates_list, krates, krate_spans, files);
 
         // Add dependency tree to message if available
         message = self.add_dependency_tree_to_message(message, &diag.graph_nodes, krates, diag.with_features);
@@ -300,15 +303,17 @@ impl SarifCollector {
 
     /// Handles location resolution for other diagnostic types (Bans, Sources, etc.)
     /// These should have locations from Cargo.toml, but fallback if needed
-    fn handle_default_locations(
+    fn handle_default_locations<'k>(
         &self,
         initial_locations: Vec<Location>,
         krates_list: &[Kid],
         krates: Option<&Krates>,
+        krate_spans: Option<&'k KrateSpans<'k>>,
+        files: &Files,
     ) -> Vec<Location> {
         if initial_locations.is_empty() {
-            if let Some(krates_ref) = krates {
-                self.build_root_crate_locations(krates_list, krates_ref)
+            if let (Some(krates_ref), Some(krate_spans_ref)) = (krates, krate_spans) {
+                self.build_root_crate_locations(krates_list, krates_ref, krate_spans_ref, files)
             } else {
                 Vec::new()
             }
@@ -534,10 +539,12 @@ impl SarifCollector {
     /// Builds locations pointing to root crates that depend on the violating crates
     /// Each root crate gets its own Location with physical_location pointing to the root crate's Cargo.toml
     /// If a dependency uses `workspace = true`, the location points to the workspace manifest instead
-    fn build_root_crate_locations(
+    fn build_root_crate_locations<'k>(
         &self,
         violating_krates: &[Kid],
         krates: &Krates,
+        krate_spans: &'k KrateSpans<'k>,
+        files: &Files,
     ) -> Vec<Location> {
         let mut locations = Vec::new();
         let mut seen_roots = HashSet::new();
@@ -570,343 +577,155 @@ impl SarifCollector {
                 // The path is already in correct order: [root, dep1, dep2, ..., violating_crate]
                 // Find dep1 (the first dependency in the path) in the root crate's manifest
                 // Only check dep1 - if it's not directly declared in root, we can't find it
-                let (dep_info, manifest_path_to_use) = if path.len() > 1 {
+                let location = if path.len() > 1 {
                     let dep1_kid = &path[1];
-                    if let Some(root_nid) = krates.nid_for_kid(root_kid) {
-                        // Check if dep1 is directly declared in the root crate
-                        root_krate
-                            .deps
-                            .iter()
-                            .enumerate()
-                            .find_map(|(i, dep)| {
-                                krates
-                                    .resolved_dependency(root_nid, i)
-                                    .filter(|resolved_kid| resolved_kid.id == *dep1_kid)
-                                    .map(|_| dep.name.as_str())
-                            })
-                            .and_then(|dep_name| {
-                                // Check if this dependency uses workspace = true
-                                let is_workspace_dep = self.check_if_workspace_dependency(
-                                    root_krate.manifest_path.as_std_path(),
-                                    dep_name,
-                                );
-                                
-                                let (manifest_info, manifest_path) = if is_workspace_dep {
-                                    // Look in workspace manifest
-                                    let workspace_manifest = krates.workspace_root().join("Cargo.toml");
-                                    let info = self.find_workspace_dependency_in_manifest(
-                                        workspace_manifest.as_std_path(),
-                                        dep_name,
-                                    );
-                                    (info, workspace_manifest)
+                    
+                    // Get the manifest for the root crate
+                    let Some(manifest) = krate_spans.manifest(root_kid) else {
+                        continue;
+                    };
+                    
+                    // Find the dependency in the manifest that resolves to dep1_kid
+                    let manifest_dep = manifest.deps(false).find(|mdep| mdep.krate.id == *dep1_kid);
+                    
+                    if let Some(mdep) = manifest_dep {
+                        // Check if this is a workspace dependency
+                        let is_workspace_dep = mdep.workspace.as_ref().map_or(false, |w| w.value);
+                        
+                        if is_workspace_dep {
+                            // Use workspace span if available
+                            if let Some(ws_span) = krate_spans.workspace_span(dep1_kid) {
+                                if let Some(ws_file_id) = krate_spans.workspace_id {
+                                    let workspace_path = krates.workspace_root().join("Cargo.toml");
+                                    // Use value span to get the full dependency declaration
+                                    self.span_to_location(ws_file_id, ws_span.value, &workspace_path, files)
                                 } else {
-                                    // Look in root crate manifest
-                                    let info = self.find_dependency_in_manifest(
-                                        root_krate.manifest_path.as_std_path(),
-                                        dep_name,
-                                    );
-                                    (info, root_krate.manifest_path.clone())
-                                };
-                                
-                                Some((manifest_info, manifest_path))
-                            })
-                            .unwrap_or((None, root_krate.manifest_path.clone()))
+                                    continue
+                                }
+                            } else {
+                                continue
+                            }
+                        } else {
+                            // Create a span from key start to value end to include the full dependency declaration
+                            let full_span = toml_span::Span {
+                                start: mdep.key_span.start,
+                                end: mdep.value_span.end,
+                            };
+                            self.span_to_location(manifest.id, full_span, &root_krate.manifest_path, files)
+                        }
                     } else {
-                        (None, root_krate.manifest_path.clone())
+                        continue
                     }
                 } else {
-                    (None, root_krate.manifest_path.clone())
+                    // No path, just point to root manifest
+                    if let Some(manifest) = krate_spans.manifest(root_kid) {
+                        // Point to the beginning of the file
+                        self.span_to_location(manifest.id, toml_span::Span::new(0, 0), &root_krate.manifest_path, files)
+                    } else {
+                        continue
+                    }
                 };
 
-                // Create Location with physical location pointing to root's Cargo.toml or workspace manifest
-                let (start_line, snippet, byte_offset, byte_length) = dep_info
-                    .map(|(line, snip, offset, length)| (line, Some(snip), offset, length))
-                    .unwrap_or((1, None, 0, 0));
+                if let Some(loc) = location {
+                    // Create location key for deduplication (URI + region)
+                    let location_key = format!(
+                        "{}:{}:{}:{}",
+                        loc.physical_location.as_ref()
+                            .and_then(|pl| pl.artifact_location.uri.strip_prefix("file://"))
+                            .unwrap_or(""),
+                        loc.physical_location.as_ref()
+                            .map(|pl| pl.region.start_line)
+                            .unwrap_or(0),
+                        loc.physical_location.as_ref()
+                            .map(|pl| pl.region.byte_offset)
+                            .unwrap_or(0),
+                        loc.physical_location.as_ref()
+                            .map(|pl| pl.region.byte_length)
+                            .unwrap_or(0),
+                    );
 
-                // Create location key for deduplication (URI + region)
-                let location_key = format!(
-                    "{}:{}:{}:{}",
-                    manifest_path_to_use,
-                    start_line,
-                    byte_offset,
-                    byte_length
-                );
+                    // Skip if we've already created a location for this exact position
+                    if !seen_locations.insert(location_key) {
+                        continue;
+                    }
 
-                // Skip if we've already created a location for this exact position
-                if !seen_locations.insert(location_key) {
-                    continue;
+                    locations.push(loc);
                 }
-
-                locations.push(Location {
-                    physical_location: Some(crate::sarif::model::PhysicalLocation {
-                        artifact_location: crate::sarif::model::ArtifactLocation {
-                            uri: format!("file://{}", manifest_path_to_use),
-                        },
-                        region: crate::sarif::model::Region {
-                            start_line,
-                            byte_offset,
-                            byte_length,
-                            snippet,
-                            message: None,
-                        },
-                    }),
-                });
             }
         }
 
         locations
     }
 
-    /// Finds the dependency declaration in a Cargo.toml manifest
-    /// Returns (line_number, line_content, byte_offset, byte_length) if found, None otherwise
-    /// If the dependency appears in multiple sections, prioritizes [dependencies] > [dev-dependencies] > [build-dependencies]
-    fn find_dependency_in_manifest(
+    /// Converts a toml_span::Span to a SARIF Location
+    fn span_to_location(
         &self,
-        manifest_path: &std::path::Path,
-        dep_name_in_manifest: &str,
-    ) -> Option<(usize, String, usize, usize)> {
-        // Read the manifest file
-        let contents = std::fs::read_to_string(manifest_path).ok()?;
+        file_id: diag::FileId,
+        span: toml_span::Span,
+        file_path: &crate::Path,
+        files: &Files,
+    ) -> Option<Location> {
+        // Use the provided file_id to access the source
+        let source = files.source(file_id);
         
-        // Parse the TOML file
-        let root = toml_span::parse(&contents).ok()?;
-
-        // Helper to find dependency in a specific section
-        // Returns (priority, key_span, value_span) if found
-        // Priority: dependencies (0) > dev-dependencies (1) > build-dependencies (2)
-        let find_in_section = |pointer: &str, priority: usize| -> Option<(usize, toml_span::Span, toml_span::Span)> {
-            let dep_table = root.pointer(pointer)?;
-            let table = dep_table.as_table()?;
-            let (key, dep_value) = table.get_key_value(dep_name_in_manifest)?;
-            Some((priority, key.span, dep_value.span))
-        };
-
-        // Check sections in priority order: dependencies > dev-dependencies > build-dependencies
-        let mut best_match: Option<(usize, toml_span::Span, toml_span::Span)> = None;
-
-        // Check [dependencies] section (priority 0)
-        if let Some(match_info) = find_in_section("/dependencies", 0) {
-            best_match = Some(match_info);
+        // Ensure span is within bounds
+        let span_start = span.start.min(source.len());
+        let span_end = span.end.min(source.len());
+        
+        if span_start > span_end {
+            return None;
         }
-
-        // Check [dev-dependencies] section (priority 1)
-        if let Some(match_info) = find_in_section("/dev-dependencies", 1) {
-            match best_match {
-                None => best_match = Some(match_info),
-                Some((best_priority, _, _)) if match_info.0 < best_priority => {
-                    best_match = Some(match_info);
-                }
-                _ => {}
-            }
-        }
-
-        // Check [build-dependencies] section (priority 2)
-        if let Some(match_info) = find_in_section("/build-dependencies", 2) {
-            match best_match {
-                None => best_match = Some(match_info),
-                Some((best_priority, _, _)) if match_info.0 < best_priority => {
-                    best_match = Some(match_info);
-                }
-                _ => {}
-            }
-        }
-
-        // Check target-specific dependency sections (treated as regular dependencies, priority 0)
-        if let Some(targets) = root.pointer("/target") {
-            if let Some(targets_table) = targets.as_table() {
-                for (_target_key, target_value) in targets_table.iter() {
-                    if let Some(target_table) = target_value.as_table() {
-                        // Check [target.*.dependencies]
-                        if let Some(deps_table) = target_table.get("dependencies") {
-                            if let Some(deps_table) = deps_table.as_table() {
-                                if let Some((key, dep_value)) = deps_table.get_key_value(dep_name_in_manifest) {
-                                    match best_match {
-                                        None => {
-                                            best_match = Some((0, key.span, dep_value.span));
-                                        }
-                                        Some((best_priority, _, _)) if best_priority > 0 => {
-                                            best_match = Some((0, key.span, dep_value.span));
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        }
-                        // Check [target.*.dev-dependencies]
-                        if let Some(deps_table) = target_table.get("dev-dependencies") {
-                            if let Some(deps_table) = deps_table.as_table() {
-                                if let Some((key, dep_value)) = deps_table.get_key_value(dep_name_in_manifest) {
-                                    match best_match {
-                                        None => {
-                                            best_match = Some((1, key.span, dep_value.span));
-                                        }
-                                        Some((best_priority, _, _)) if best_priority > 1 => {
-                                            best_match = Some((1, key.span, dep_value.span));
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        }
-                        // Check [target.*.build-dependencies]
-                        if let Some(deps_table) = target_table.get("build-dependencies") {
-                            if let Some(deps_table) = deps_table.as_table() {
-                                if let Some((key, dep_value)) = deps_table.get_key_value(dep_name_in_manifest) {
-                                    match best_match {
-                                        None => {
-                                            best_match = Some((2, key.span, dep_value.span));
-                                        }
-                                        Some((best_priority, _, _)) if best_priority > 2 => {
-                                            best_match = Some((2, key.span, dep_value.span));
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Extract information from the best match
-        let (_, key_span, value_span) = best_match?;
-
-        // Use the key span for byte offset (start of the dependency name)
-        // Use the value span end for the full dependency declaration length
-        let byte_offset = key_span.start;
-        let byte_length = value_span.end - key_span.start;
-
+        
         // Calculate line number from byte offset
-        let line_number = contents[..byte_offset.min(contents.len())]
-            .chars()
-            .filter(|&c| c == '\n')
-            .count()
-            + 1;
-
-        // Extract the line content (from key start to end of line containing value end)
-        let line_end = contents[byte_offset..]
-            .find('\n')
-            .map(|pos| byte_offset + pos + 1)
-            .unwrap_or(contents.len());
-        let line_start = contents[..byte_offset]
-            .rfind('\n')
-            .map(|pos| pos + 1)
-            .unwrap_or(0);
-        let line_content = contents[line_start..line_end.min(contents.len())]
-            .trim_end()
-            .to_string();
-
-        Some((line_number, line_content, byte_offset, byte_length))
-    }
-
-    /// Checks if a dependency declaration uses `workspace = true`
-    fn check_if_workspace_dependency(
-        &self,
-        manifest_path: &std::path::Path,
-        dep_name: &str,
-    ) -> bool {
-        let contents = match std::fs::read_to_string(manifest_path) {
-            Ok(c) => c,
-            Err(_) => return false,
-        };
-        
-        let root = match toml_span::parse(&contents) {
-            Ok(r) => r,
-            Err(_) => return false,
-        };
-        
-        // Check all dependency sections for this dependency
-        let sections = [
-            "/dependencies",
-            "/dev-dependencies",
-            "/build-dependencies",
-        ];
-        
-        for section in sections {
-            if let Some(dep_table) = root.pointer(section) {
-                if let Some(table) = dep_table.as_table() {
-                    if let Some((_, dep_value)) = table.get_key_value(dep_name) {
-                        // Check if it's a table with workspace = true
-                        if let Some(dep_table) = dep_value.as_table() {
-                            if let Some(workspace_val) = dep_table.get("workspace") {
-                                if let Some(true) = workspace_val.as_bool() {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Also check target-specific sections
-        if let Some(targets) = root.pointer("/target") {
-            if let Some(targets_table) = targets.as_table() {
-                for (_target_key, target_value) in targets_table.iter() {
-                    if let Some(target_table) = target_value.as_table() {
-                        for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
-                            if let Some(deps_table) = target_table.get(section) {
-                                if let Some(deps_table) = deps_table.as_table() {
-                                    if let Some((_, dep_value)) = deps_table.get_key_value(dep_name) {
-                                        if let Some(dep_table) = dep_value.as_table() {
-                                            if let Some(workspace_val) = dep_table.get("workspace") {
-                                                if let Some(true) = workspace_val.as_bool() {
-                                                    return true;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        false
-    }
-
-    /// Finds a dependency in the [workspace.dependencies] section
-    fn find_workspace_dependency_in_manifest(
-        &self,
-        manifest_path: &std::path::Path,
-        dep_name: &str,
-    ) -> Option<(usize, String, usize, usize)> {
-        let contents = std::fs::read_to_string(manifest_path).ok()?;
-        let root = toml_span::parse(&contents).ok()?;
-        
-        // Look in [workspace.dependencies]
-        let workspace_deps = root.pointer("/workspace/dependencies")?;
-        let table = workspace_deps.as_table()?;
-        let (key, dep_value) = table.get_key_value(dep_name)?;
-        
-        let key_span = key.span;
-        let value_span = dep_value.span;
-        
-        let byte_offset = key_span.start;
-        let byte_length = value_span.end - key_span.start;
-        
-        let line_number = contents[..byte_offset.min(contents.len())]
+        let byte_offset = span_start;
+        let line_number = source[..byte_offset]
             .chars()
             .filter(|&c| c == '\n')
             .count()
             + 1;
         
-        let line_end = contents[byte_offset..]
-            .find('\n')
-            .map(|pos| byte_offset + pos + 1)
-            .unwrap_or(contents.len());
-        let line_start = contents[..byte_offset]
-            .rfind('\n')
-            .map(|pos| pos + 1)
-            .unwrap_or(0);
-        let line_content = contents[line_start..line_end.min(contents.len())]
-            .trim_end()
-            .to_string();
+        // Calculate byte length
+        let byte_length = span_end - span_start;
         
-        Some((line_number, line_content, byte_offset, byte_length))
+        // Extract snippet - try to get the full line if the span is small
+        // This provides better context in SARIF viewers
+        let snippet = if byte_length > 0 && span_end <= source.len() {
+            // Try to get the full line containing the span for better context
+            let line_start = source[..span_start]
+                .rfind('\n')
+                .map(|pos| pos + 1)
+                .unwrap_or(0);
+            let line_end = source[span_end..]
+                .find('\n')
+                .map(|pos| span_end + pos)
+                .unwrap_or(source.len());
+            
+            // Use the full line if it's not too long (max 200 chars), otherwise use just the span
+            let line_content = &source[line_start..line_end];
+            if line_content.len() <= 200 {
+                Some(line_content.trim_end().to_string())
+            } else {
+                // Fall back to just the span if the line is too long
+                source.get(span_start..span_end).map(String::from)
+            }
+        } else {
+            None
+        };
+        
+        Some(Location {
+            physical_location: Some(crate::sarif::model::PhysicalLocation {
+                artifact_location: crate::sarif::model::ArtifactLocation {
+                    uri: format!("file://{}", file_path),
+                },
+                region: crate::sarif::model::Region {
+                    start_line: line_number,
+                    byte_offset,
+                    byte_length,
+                    snippet,
+                    message: None,
+                },
+            }),
+        })
     }
 
     /// Finds all dependency paths from any workspace member (root) to the given crate

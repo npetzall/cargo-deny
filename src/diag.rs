@@ -10,7 +10,7 @@ use std::{collections::BTreeMap, ops::Range};
 
 use crate::{Kid, PathBuf, Span};
 pub use codespan_reporting::diagnostic::Severity;
-pub use krate_spans::{KrateSpans, Manifest, ManifestDep, UnusedWorkspaceDep};
+pub use krate_spans::{get_package_section_span, KrateSpans, Manifest, ManifestDep, UnusedWorkspaceDep};
 
 pub type FileId = usize;
 
