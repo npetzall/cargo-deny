@@ -1,8 +1,8 @@
 use super::NodePrint;
-use crate::{DepKind, Krates};
+use crate::{DepKind, Kid, Krates};
 use anyhow::Context;
 use krates::{Edge, Node, petgraph as pg};
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 #[derive(serde::Serialize)]
 pub struct GraphNode {
@@ -21,6 +21,10 @@ pub enum NodeInner {
         version: semver::Version,
         #[serde(skip_serializing_if = "Option::is_none")]
         kind: Option<&'static str>,
+        #[serde(skip)]
+        id: Kid,
+        #[serde(skip)]
+        is_workspace_member: bool,
     },
     Feature {
         crate_name: String,
@@ -81,10 +85,20 @@ impl<'a> InclusionGrapher<'a> {
             })?;
 
             let inner = if let Node::Krate { krate, .. } = root_krate {
+                // Check if this crate is a workspace member
+                let is_workspace_member = self.krates.workspace_members().any(|wm| {
+                    let krates::Node::Krate { id, .. } = wm else {
+                        return false;
+                    };
+                    id == &krate.id
+                });
+
                 NodeInner::Krate {
                     name: krate.name.clone(),
                     version: krate.version.clone(),
                     kind: None,
+                    id: krate.id.clone(),
+                    is_workspace_member,
                 }
             } else {
                 anyhow::bail!("unable to find crate node for {}", id.kid);
@@ -112,10 +126,20 @@ impl<'a> InclusionGrapher<'a> {
                     Edge::Feature => None,
                 });
 
+                // Check if this crate is a workspace member
+                let is_workspace_member = self.krates.workspace_members().any(|wm| {
+                    let krates::Node::Krate { id, .. } = wm else {
+                        return false;
+                    };
+                    id == &krate.id
+                });
+
                 NodeInner::Krate {
                     name: krate.name.clone(),
                     version: krate.version.clone(),
                     kind,
+                    id: krate.id.clone(),
+                    is_workspace_member,
                 }
             }
             Node::Feature { name, krate_index } => {
@@ -333,6 +357,7 @@ pub fn write_graph_as_text(root: &GraphNode) -> String {
                 name,
                 version,
                 kind,
+                ..
             } => {
                 if let Some(kind) = kind {
                     write!(out, "({kind}) ").unwrap();
@@ -362,106 +387,80 @@ pub fn write_graph_as_text(root: &GraphNode) -> String {
     out
 }
 
-/// Represents a dependency edge from parent to child
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DependencyEdge {
-    /// The parent crate (the one that depends on the child)
-    pub parent: (String, semver::Version),
-    /// The child crate (the dependency)
-    pub child: (String, semver::Version),
-}
-
 /// Represents a path from a root crate down to the vulnerable crate
 #[derive(Debug, Clone)]
 pub struct DependencyPath {
     /// The root crate (name, version)
     pub root: (String, semver::Version),
-    /// The path of dependency edges from root to vulnerable.
-    /// The first edge is root -> next, last edge is second-to-last -> vulnerable.
-    pub edges: Vec<DependencyEdge>,
+    /// The root crate's kid identifier
+    pub root_kid: Kid,
+    /// The path of crates from root to vulnerable (excluding root).
+    /// The first crate is a direct dependency of root, each subsequent crate
+    /// is a direct dependency of the previous one.
+    pub crates: Vec<(String, semver::Version, Kid)>,
 }
 
 impl GraphNode {
     /// Collects all paths from root crates down to this node (the vulnerable crate).
-    /// Returns paths with dependency edges that can be checked for workspace dependencies.
+    /// Returns paths with crates that can be checked for workspace dependencies.
     pub fn collect_root_paths(&self) -> Vec<DependencyPath> {
         let mut paths = Vec::new();
-        let mut current_path = Vec::new();
-
-        // Get the vulnerable crate info (this node)
-        let vulnerable = if let NodeInner::Krate { name, version, .. } = &self.inner {
-            Some((name.clone(), version.clone()))
-        } else {
-            None
-        };
-
-        if vulnerable.is_some() {
-            self.collect_root_paths_internal(&mut paths, &mut current_path, &vulnerable.unwrap());
-        }
-
+        let mut current_path = VecDeque::new();
+        self.collect_root_paths_internal(&mut paths, &mut current_path);
         paths
     }
 
     fn collect_root_paths_internal(
         &self,
         paths: &mut Vec<DependencyPath>,
-        current_path: &mut Vec<DependencyEdge>,
-        vulnerable: &(String, semver::Version),
+        current_path: &mut VecDeque<(String, semver::Version, Kid)>,
     ) {
         // Get current node info
-        let (current_name, current_version) = if let NodeInner::Krate { name, version, .. } = &self.inner {
-            (name.clone(), version.clone())
-        } else {
-            // Skip feature nodes, continue to parents
-            for parent in &self.parents {
-                parent.collect_root_paths_internal(paths, current_path, vulnerable);
-            }
-            return;
-        };
+        let (current_name, current_version, current_kid, is_workspace_member) = 
+            if let NodeInner::Krate { name, version, id, is_workspace_member, .. } = &self.inner {
+                (name.clone(), version.clone(), id.clone(), *is_workspace_member)
+            } else {
+                // Skip feature nodes, continue to parents
+                for parent in &self.parents {
+                    parent.collect_root_paths_internal(paths, current_path);
+                }
+                return;
+            };
 
-        if self.parents.is_empty() {
-            // We've reached a root crate
-            // Reverse the path since we built it from vulnerable up to root
-            let mut reversed_edges = current_path.clone();
-            reversed_edges.reverse();
-
+        // Stop at workspace members or leaf nodes (no parents) - this is the root
+        if is_workspace_member || self.parents.is_empty() {
+            // We've reached a workspace member or a root crate
+            // The path is already in the correct order (root -> vulnerable) since we pushed to front
             paths.push(DependencyPath {
                 root: (current_name, current_version),
-                edges: reversed_edges,
+                root_kid: current_kid,
+                crates: current_path.iter().cloned().collect(),
             });
         } else {
+            // Extract current crate info once before the loop
+            let current_crate = (current_name.clone(), current_version.clone(), current_kid.clone());
+            
             // Continue traversing up to parents
             for parent in &self.parents {
-                // Get parent info
-                if let NodeInner::Krate { name: parent_name, version: parent_version, .. } = &parent.inner {
-                    // Add edge: parent depends on current (parent -> current)
-                    current_path.push(DependencyEdge {
-                        parent: (parent_name.clone(), parent_version.clone()),
-                        child: (current_name.clone(), current_version.clone()),
-                    });
-
-                    // Recurse to parent
-                    parent.collect_root_paths_internal(paths, current_path, vulnerable);
-
-                    // Remove edge when backtracking
-                    current_path.pop();
-                } else {
-                    // Parent is a feature node, skip it and continue
-                    parent.collect_root_paths_internal(paths, current_path, vulnerable);
+                match &parent.inner {
+                    NodeInner::Krate { .. } => {
+                        // Push to front to build path in correct order (root -> vulnerable)
+                        // as we traverse up, we push each crate to the front
+                        current_path.push_front(current_crate.clone());
+                        
+                        // Recurse to parent (going up the tree)
+                        parent.collect_root_paths_internal(paths, current_path);
+                        
+                        // Remove crate when backtracking
+                        current_path.pop_front();
+                    }
+                    NodeInner::Feature { .. } => {
+                        // Feature nodes don't create path entries, just recurse
+                        parent.collect_root_paths_internal(paths, current_path);
+                    }
                 }
             }
         }
     }
 
-    /// Collects all root nodes (nodes with empty parents) from the graph.
-    /// Returns a vector of (name, version) tuples for each root crate.
-    ///
-    /// This is a convenience method that extracts roots from `collect_root_paths()`.
-    /// For more detailed path information, use `collect_root_paths()` instead.
-    pub fn collect_root_crates(&self) -> Vec<(String, semver::Version)> {
-        self.collect_root_paths()
-            .into_iter()
-            .map(|path| path.root)
-            .collect()
-    }
 }
