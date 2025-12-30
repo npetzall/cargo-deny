@@ -361,6 +361,7 @@ pub(crate) fn cmd(
                 files,
                 &mut stats,
                 feature_depth,
+                &krate_spans,
             );
         });
 
@@ -544,11 +545,12 @@ fn print_diagnostics(
     files: &Files,
     stats: &mut AllStats,
     feature_depth: Option<u32>,
+    krate_spans: &cargo_deny::diag::KrateSpans<'_>,
 ) {
     use cargo_deny::diag::Check;
 
     if log_ctx.format == crate::Format::Sarif {
-        let mut sc = cargo_deny::sarif::SarifCollector::new(krates, feature_depth);
+        let mut sc = cargo_deny::sarif::SarifCollector::new(krates, feature_depth, Some(&krate_spans));
 
         for pack in rx {
             sc.add_diagnostics(pack, files);

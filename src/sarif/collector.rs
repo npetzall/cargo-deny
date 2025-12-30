@@ -16,6 +16,7 @@ pub struct SarifCollector<'a> {
     rules: BTreeMap<DiagnosticCode, RuleData>,
     grapher: Option<diag::InclusionGrapher<'a>>,
     feature_depth: Option<u32>,
+    krate_spans: Option<&'a diag::KrateSpans<'a>>,
 }
 
 struct DiagnosticData {
@@ -34,12 +35,17 @@ struct RuleData {
 }
 
 impl<'a> SarifCollector<'a> {
-    pub fn new(krates: Option<&'a crate::Krates>, feature_depth: Option<u32>) -> Self {
+    pub fn new(
+        krates: Option<&'a crate::Krates>,
+        feature_depth: Option<u32>,
+        krate_spans: Option<&'a diag::KrateSpans<'a>>,
+    ) -> Self {
         Self {
             diagnostics: Vec::new(),
             rules: BTreeMap::new(),
             grapher: krates.map(diag::InclusionGrapher::new),
             feature_depth,
+            krate_spans,
         }
     }
     pub fn add_diagnostics(&mut self, pack: Pack, files: &crate::diag::Files) {
@@ -179,6 +185,7 @@ impl<'a> SarifCollector<'a> {
 
     /// Finds root workspace crates that depend on the vulnerable crate(s) by building
     /// reverse dependency graphs and collecting nodes with empty parents.
+    /// Assumes root crates are workspace members (which always have manifests).
     fn find_root_locations(
         &self,
         diag: &crate::diag::Diag,
@@ -191,25 +198,142 @@ impl<'a> SarifCollector<'a> {
             0
         };
 
-        let mut root_kids = HashSet::new();
-        let mut locations = Vec::new();
+        let Some(krate_spans) = self.krate_spans else {
+            return Vec::new();
+        };
 
-        // Build graphs for each vulnerable crate and collect root nodes
+        let mut locations = Vec::new();
+        // Deduplicate locations by file URI and span (byte_offset, byte_length)
+        let mut seen_locations: HashSet<(String, usize, usize)> = HashSet::new();
+
+        // Build graphs for each vulnerable crate and collect ALL paths (no deduplication)
+        let mut all_paths: Vec<_> = Vec::new();
+
         for graph_node in &diag.graph_nodes {
             if let Ok(graph) = grapher.build_graph(graph_node, max_feature_depth) {
-                self.collect_root_kids(&graph, grapher, &mut root_kids);
+                // Collect all paths without deduplication
+                for path in graph.collect_root_paths() {
+                    all_paths.push(path);
+                }
             }
         }
 
-        // Convert root crate IDs to locations
-        for kid in root_kids {
-            if let Some(km) = grapher
-                .krates
-                .krates_by_name(kid.name())
-                .find(|km| km.krate.id == kid)
-            {
-                if let Some(loc) = self.create_manifest_location(&km.krate.manifest_path, files) {
-                    locations.push(loc);
+        // Now process each unique root with its shortest path
+        // Also collect all workspace members that directly depend on the vulnerable crate
+        for graph_node in &diag.graph_nodes {
+            let vulnerable_kid = &graph_node.kid;
+            let vulnerable_name = vulnerable_kid.name().to_string();
+            let vulnerable_version_str = vulnerable_kid.version();
+
+            // First, find all workspace members that directly depend on the vulnerable crate
+            // This ensures we don't miss any workspace members, even if they're not in the paths
+            if let Ok(vulnerable_version) = vulnerable_version_str.parse::<semver::Version>() {
+                for workspace_member in grapher.krates.workspace_members() {
+                    let krates::Node::Krate { id: member_kid, .. } = workspace_member else {
+                        continue;
+                    };
+                    
+                    // Check if this workspace member directly depends on the vulnerable crate
+                    if let Some((loc, _is_workspace_dep, _dep_kid)) = self.find_dependency_location_from_path(
+                        member_kid,
+                        &(vulnerable_name.clone(), vulnerable_version.clone()),
+                        krate_spans,
+                        files,
+                    ) {
+                        // Deduplicate by file URI and span
+                        let key = (
+                            loc.physical_location.artifact_location.uri.clone(),
+                            loc.physical_location.region.byte_offset,
+                            loc.physical_location.region.byte_length,
+                        );
+                        if seen_locations.insert(key) {
+                            locations.push(loc);
+                        }
+                    }
+                }
+            }
+
+            // Process all paths (no deduplication)
+            for path in &all_paths {
+                // Traverse the path backwards to find the first workspace member
+                // Skip if the last edge directly points to vulnerable (already handled by direct check)
+                let Some(last_edge) = path.edges.last() else {
+                    continue;
+                };
+
+                // Verify last edge points to vulnerable
+                if last_edge.child.0 != vulnerable_name || last_edge.child.1.to_string() != vulnerable_version_str {
+                    continue;
+                }
+
+                // Check if the declaring crate (parent of last edge) is a workspace member
+                let declaring_crate = &last_edge.parent;
+                let declaring_kid = if let Some(declaring_km) = grapher
+                    .krates
+                    .krates_by_name(&declaring_crate.0)
+                    .find(|km| km.krate.version == declaring_crate.1)
+                {
+                    &declaring_km.krate.id
+                } else {
+                    continue;
+                };
+
+                // If declaring crate is a workspace member and directly depends on vulnerable,
+                // we've already handled it in the direct check above, so skip
+                let is_direct_workspace_member = grapher.krates.workspace_members().any(|wm| {
+                    let krates::Node::Krate { id, .. } = wm else {
+                        return false;
+                    };
+                    id == declaring_kid
+                });
+
+                if is_direct_workspace_member {
+                    // This is a direct dependency, already handled by the direct check above
+                    continue;
+                }
+
+                // Declaring crate is not a workspace member, traverse backwards to find first workspace member
+                // This handles indirect dependencies (workspace member -> intermediate -> vulnerable)
+                for edge in path.edges.iter().rev() {
+                    let crate_in_path = &edge.parent;
+                    if let Some(crate_km) = grapher
+                        .krates
+                        .krates_by_name(&crate_in_path.0)
+                        .find(|km| km.krate.version == crate_in_path.1)
+                    {
+                        let crate_kid = &crate_km.krate.id;
+                        
+                        // Check if this crate is a workspace member
+                        if grapher.krates.workspace_members().any(|wm| {
+                            let krates::Node::Krate { id, .. } = wm else {
+                                return false;
+                            };
+                            id == crate_kid
+                        }) {
+                            // Found a workspace member - find what it declares in this path
+                            if let Some(edge) = path.edges.iter().find(|e| {
+                                e.parent.0 == crate_in_path.0 && e.parent.1 == crate_in_path.1
+                            }) {
+                                if let Some((loc, _is_workspace_dep, _dep_kid)) = self.find_dependency_location_from_path(
+                                    crate_kid,
+                                    &edge.child,
+                                    krate_spans,
+                                    files,
+                                ) {
+                                    // Deduplicate by file URI and span
+                                    let key = (
+                                        loc.physical_location.artifact_location.uri.clone(),
+                                        loc.physical_location.region.byte_offset,
+                                        loc.physical_location.region.byte_length,
+                                    );
+                                    if seen_locations.insert(key) {
+                                        locations.push(loc);
+                                    }
+                                }
+                            }
+                            break; // Found the first workspace member, stop traversing
+                        }
+                    }
                 }
             }
         }
@@ -217,49 +341,50 @@ impl<'a> SarifCollector<'a> {
         locations
     }
 
-    /// Collects root crate IDs from the graph using the public API.
-    fn collect_root_kids(
+    /// Finds the location of a dependency declaration in a root crate's manifest.
+    /// If the dependency is workspace-controlled, returns the workspace location.
+    /// Assumes root_kid is a workspace member (which always has a manifest).
+    /// Returns (Location, is_workspace_dep, dep_kid) to allow deduplication of workspace deps.
+    fn find_dependency_location_from_path(
         &self,
-        graph: &crate::diag::DependencyGraphNode,
-        grapher: &diag::InclusionGrapher<'_>,
-        root_kids: &mut HashSet<Kid>,
-    ) {
-        // Use the public method to collect root crates
-        for (name, version) in graph.collect_root_crates() {
-            if let Some(km) = grapher
-                .krates
-                .krates_by_name(&name)
-                .find(|km| km.krate.version == version)
-            {
-                root_kids.insert(km.krate.id.clone());
+        root_kid: &Kid,
+        dep_child: &(String, semver::Version),
+        krate_spans: &diag::KrateSpans<'_>,
+        files: &crate::diag::Files,
+    ) -> Option<(Location, bool, Kid)> {
+        use crate::diag::Label;
+
+        // Get the manifest for the root crate (workspace members always have manifests)
+        let manifest = krate_spans.manifest(root_kid)?;
+
+        // Find the dependency in the manifest that matches the child from the path
+        let manifest_dep = manifest.deps(false).find(|mdep| {
+            mdep.krate.name == dep_child.0 && mdep.krate.version == dep_child.1
+        })?;
+
+        let dep_kid = manifest_dep.krate.id.clone();
+
+        // Check if this dependency is workspace-controlled
+        if manifest_dep.workspace.as_ref().map_or(false, |w| w.value) {
+            // Use workspace span if available
+            if let Some(ws_span) = krate_spans.workspace_span(&dep_kid) {
+                if let Some(workspace_id) = krate_spans.workspace_id {
+                    // Combine key and value spans to include both in the snippet
+                    let combined_start = ws_span.key.start.min(ws_span.value.start);
+                    let combined_end = ws_span.key.end.max(ws_span.value.end);
+                    let combined_span: crate::Span = (combined_start..combined_end).into();
+                    let label = Label::primary(workspace_id, combined_span);
+                    return files.sarif_location(&label).ok().map(|loc| (loc, true, dep_kid));
+                }
             }
         }
-    }
 
-    /// Creates a SARIF location for a manifest file.
-    fn create_manifest_location(
-        &self,
-        manifest_path: &crate::Path,
-        _files: &crate::diag::Files,
-    ) -> Option<Location> {
-        use crate::sarif::model;
-
-        // Create a location pointing to the beginning of the file
-        // We use byte offset 0 and length 0 to point to the start
-        Some(Location {
-            physical_location: model::PhysicalLocation {
-                artifact_location: model::ArtifactLocation {
-                    uri: format!("file://{}", manifest_path),
-                },
-                region: model::Region {
-                    start_line: 0,
-                    byte_offset: 0,
-                    byte_length: 0,
-                    snippet: None,
-                    message: None,
-                },
-            },
-        })
+        // Use manifest dependency span - combine key and value spans to include both in the snippet
+        let combined_start = manifest_dep.key_span.start.min(manifest_dep.value_span.start);
+        let combined_end = manifest_dep.key_span.end.max(manifest_dep.value_span.end);
+        let combined_span: crate::Span = (combined_start..combined_end).into();
+        let label = Label::primary(manifest.id, combined_span);
+        files.sarif_location(&label).ok().map(|loc| (loc, false, dep_kid))
     }
 
     fn process_other(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {

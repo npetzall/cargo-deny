@@ -21,7 +21,11 @@ where
             runner(cctx, tx);
         },
         || {
-            let mut sarif = cargo_deny::sarif::SarifCollector::default();
+            let mut sarif = cargo_deny::sarif::SarifCollector::new(
+                Some(ctx.krates),
+                None,
+                Some(&ctx.spans),
+            );
 
             let default = if std::env::var_os("CI").is_some() {
                 60

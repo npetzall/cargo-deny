@@ -362,24 +362,106 @@ pub fn write_graph_as_text(root: &GraphNode) -> String {
     out
 }
 
+/// Represents a dependency edge from parent to child
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DependencyEdge {
+    /// The parent crate (the one that depends on the child)
+    pub parent: (String, semver::Version),
+    /// The child crate (the dependency)
+    pub child: (String, semver::Version),
+}
+
+/// Represents a path from a root crate down to the vulnerable crate
+#[derive(Debug, Clone)]
+pub struct DependencyPath {
+    /// The root crate (name, version)
+    pub root: (String, semver::Version),
+    /// The path of dependency edges from root to vulnerable.
+    /// The first edge is root -> next, last edge is second-to-last -> vulnerable.
+    pub edges: Vec<DependencyEdge>,
+}
+
 impl GraphNode {
-    /// Collects all root nodes (nodes with empty parents) from the graph.
-    /// Returns a vector of (name, version) tuples for each root crate.
-    pub fn collect_root_crates(&self) -> Vec<(String, semver::Version)> {
-        let mut roots = Vec::new();
-        self.collect_root_crates_internal(&mut roots);
-        roots
+    /// Collects all paths from root crates down to this node (the vulnerable crate).
+    /// Returns paths with dependency edges that can be checked for workspace dependencies.
+    pub fn collect_root_paths(&self) -> Vec<DependencyPath> {
+        let mut paths = Vec::new();
+        let mut current_path = Vec::new();
+
+        // Get the vulnerable crate info (this node)
+        let vulnerable = if let NodeInner::Krate { name, version, .. } = &self.inner {
+            Some((name.clone(), version.clone()))
+        } else {
+            None
+        };
+
+        if vulnerable.is_some() {
+            self.collect_root_paths_internal(&mut paths, &mut current_path, &vulnerable.unwrap());
+        }
+
+        paths
     }
 
-    fn collect_root_crates_internal(&self, roots: &mut Vec<(String, semver::Version)>) {
-        if self.parents.is_empty() {
-            if let NodeInner::Krate { name, version, .. } = &self.inner {
-                roots.push((name.clone(), version.clone()));
-            }
+    fn collect_root_paths_internal(
+        &self,
+        paths: &mut Vec<DependencyPath>,
+        current_path: &mut Vec<DependencyEdge>,
+        vulnerable: &(String, semver::Version),
+    ) {
+        // Get current node info
+        let (current_name, current_version) = if let NodeInner::Krate { name, version, .. } = &self.inner {
+            (name.clone(), version.clone())
         } else {
+            // Skip feature nodes, continue to parents
             for parent in &self.parents {
-                parent.collect_root_crates_internal(roots);
+                parent.collect_root_paths_internal(paths, current_path, vulnerable);
+            }
+            return;
+        };
+
+        if self.parents.is_empty() {
+            // We've reached a root crate
+            // Reverse the path since we built it from vulnerable up to root
+            let mut reversed_edges = current_path.clone();
+            reversed_edges.reverse();
+
+            paths.push(DependencyPath {
+                root: (current_name, current_version),
+                edges: reversed_edges,
+            });
+        } else {
+            // Continue traversing up to parents
+            for parent in &self.parents {
+                // Get parent info
+                if let NodeInner::Krate { name: parent_name, version: parent_version, .. } = &parent.inner {
+                    // Add edge: parent depends on current (parent -> current)
+                    current_path.push(DependencyEdge {
+                        parent: (parent_name.clone(), parent_version.clone()),
+                        child: (current_name.clone(), current_version.clone()),
+                    });
+
+                    // Recurse to parent
+                    parent.collect_root_paths_internal(paths, current_path, vulnerable);
+
+                    // Remove edge when backtracking
+                    current_path.pop();
+                } else {
+                    // Parent is a feature node, skip it and continue
+                    parent.collect_root_paths_internal(paths, current_path, vulnerable);
+                }
             }
         }
+    }
+
+    /// Collects all root nodes (nodes with empty parents) from the graph.
+    /// Returns a vector of (name, version) tuples for each root crate.
+    ///
+    /// This is a convenience method that extracts roots from `collect_root_paths()`.
+    /// For more detailed path information, use `collect_root_paths()` instead.
+    pub fn collect_root_crates(&self) -> Vec<(String, semver::Version)> {
+        self.collect_root_paths()
+            .into_iter()
+            .map(|path| path.root)
+            .collect()
     }
 }
