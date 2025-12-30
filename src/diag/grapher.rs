@@ -325,6 +325,14 @@ pub fn diag_to_json(
 }
 
 pub fn write_graph_as_text(root: &GraphNode) -> String {
+    write_graph_as_text_internal(root, false)
+}
+
+pub fn write_compact_graph_as_text(root: &GraphNode) -> String {
+    write_graph_as_text_internal(root, true)
+}
+
+fn write_graph_as_text_internal(root: &GraphNode, stop_at_workspace_member: bool) -> String {
     use std::fmt::Write;
 
     const DWN: char = '│';
@@ -339,6 +347,7 @@ pub fn write_graph_as_text(root: &GraphNode) -> String {
         node: &GraphNode,
         out: &mut String,
         levels_continue: &mut smallvec::SmallVec<[bool; 10]>,
+        stop_at_workspace_member: bool,
     ) {
         let star = if !node.repeat { "" } else { " (*)" };
 
@@ -357,6 +366,7 @@ pub fn write_graph_as_text(root: &GraphNode) -> String {
                 name,
                 version,
                 kind,
+                is_workspace_member,
                 ..
             } => {
                 if let Some(kind) = kind {
@@ -364,6 +374,11 @@ pub fn write_graph_as_text(root: &GraphNode) -> String {
                 }
 
                 writeln!(out, "{name} v{version}{star}").unwrap();
+
+                // Stop traversing if this is a workspace member and compact mode is enabled
+                if stop_at_workspace_member && *is_workspace_member {
+                    return;
+                }
             }
             NodeInner::Feature { crate_name, name } => {
                 writeln!(out, "{crate_name} feature '{name}' {star}").unwrap();
@@ -378,12 +393,12 @@ pub fn write_graph_as_text(root: &GraphNode) -> String {
 
         for (i, parent) in node.parents.iter().enumerate() {
             levels_continue.push(i < cont);
-            write(parent, out, levels_continue);
+            write(parent, out, levels_continue, stop_at_workspace_member);
             levels_continue.pop();
         }
     }
 
-    write(root, &mut out, &mut levels);
+    write(root, &mut out, &mut levels, stop_at_workspace_member);
     out
 }
 
