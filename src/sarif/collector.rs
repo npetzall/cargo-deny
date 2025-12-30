@@ -197,15 +197,50 @@ impl<'a> SarifCollector<'a> {
             _ => Message::text(diag.diag.message),
         };
 
-        // Add to diagnostics
-        self.diagnostics.push(DiagnosticData {
-            code,
-            krates: diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect(),
-            severity: diag.diag.severity,
-            message,
-            locations,
-            extra: diag.extra,
-        });
+        // Add to diagnostics - create one diagnostic per location for advisories
+        // (GitHub only uses the first location, so each location needs its own result)
+        let krates: smallvec::SmallVec<[Kid; 2]> = diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
+        
+        // If no locations found, create a dummy location and update message
+        let (final_locations, final_message) = if locations.is_empty() {
+            let dummy_location = Self::create_dummy_location();
+            let mut updated_message = Message {
+                text: message.text.clone(),
+                markdown: message.markdown.clone(),
+            };
+            
+            // Add note about reporting to cargo-deny
+            if let Some(ref mut md) = updated_message.markdown {
+                md.push_str("\n\n---\n\n");
+                md.push_str("**Note:** Unable to determine the location of this vulnerability in your dependency tree. ");
+                md.push_str("This may indicate an issue with cargo-deny's dependency graph analysis. ");
+                md.push_str("Please report this issue to [cargo-deny](https://github.com/embarkstudios/cargo-deny/issues).");
+            } else {
+                updated_message.markdown = Some(format!(
+                    "{}\n\n---\n\n**Note:** Unable to determine the location of this vulnerability in your dependency tree. This may indicate an issue with cargo-deny's dependency graph analysis. Please report this issue to [cargo-deny](https://github.com/embarkstudios/cargo-deny/issues).",
+                    updated_message.text
+                ));
+            }
+            
+            (vec![dummy_location], updated_message)
+        } else {
+            (locations, message)
+        };
+        
+        // Create one diagnostic per location
+        for location in final_locations {
+            self.diagnostics.push(DiagnosticData {
+                code,
+                krates: krates.clone(),
+                severity: diag.diag.severity,
+                message: Message {
+                    text: final_message.text.clone(),
+                    markdown: final_message.markdown.clone(),
+                },
+                locations: vec![location],
+                extra: diag.extra.clone(),
+            });
+        }
 
         // Add to rules if not already present
         self.rules.entry(code).or_insert(RuleData {
@@ -310,6 +345,27 @@ impl<'a> SarifCollector<'a> {
 
         let label = Label::primary(file_id, span);
         files.sarif_location(&label).ok()
+    }
+
+    /// Creates a dummy location for advisories when no actual location can be determined.
+    /// This ensures SARIF results always have at least one location.
+    fn create_dummy_location() -> Location {
+        use crate::sarif::model::{ArtifactLocation, PhysicalLocation, Region};
+        
+        Location {
+            physical_location: PhysicalLocation {
+                artifact_location: ArtifactLocation {
+                    uri: "Cargo.toml".to_string(),
+                },
+                region: Region {
+                    start_line: 1,
+                    byte_offset: 0,
+                    byte_length: 0,
+                    snippet: None,
+                    message: Some("Unable to determine dependency location".to_string()),
+                },
+            },
+        }
     }
 
     fn process_other(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {
