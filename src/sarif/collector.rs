@@ -73,7 +73,21 @@ impl<'a> SarifCollector<'a> {
         // Advisories point to Cargo.lock which is filtered out, so find root locations
         // using the dependency graph. If grapher is not available, locations will be empty.
         let locations = if let Some(grapher) = &self.grapher {
-            self.find_root_locations(&diag, grapher, files)
+            let max_feature_depth = if diag.with_features {
+                self.feature_depth.map(|d| d as usize).unwrap_or(1)
+            } else {
+                0
+            };
+
+            // Build graphs for all graph nodes and collect root paths
+            let mut all_paths = Vec::new();
+            for graph_node in &diag.graph_nodes {
+                if let Ok(graph) = grapher.build_graph(graph_node, max_feature_depth) {
+                    all_paths.extend(graph.collect_root_paths());
+                }
+            }
+
+            self.find_root_locations(&all_paths, files)
         } else {
             Vec::new()
         };
@@ -157,6 +171,24 @@ impl<'a> SarifCollector<'a> {
                     }
                 }
 
+                // Append dependency graph if available
+                if let Some(grapher) = &self.grapher {
+                    if let Some(first_graph_node) = diag.graph_nodes.first() {
+                        let max_feature_depth = if diag.with_features {
+                            self.feature_depth.map(|d| d as usize).unwrap_or(1)
+                        } else {
+                            0
+                        };
+
+                        if let Ok(graph) = grapher.build_graph(first_graph_node, max_feature_depth) {
+                            md.push_str("## Dependency Graph\n\n");
+                            md.push_str("```\n");
+                            md.push_str(&diag::write_compact_graph_as_text(&graph));
+                            md.push_str("\n```\n");
+                        }
+                    }
+                }
+
                 Message {
                     text: meta.title.clone(),
                     markdown: Some(md),
@@ -183,21 +215,14 @@ impl<'a> SarifCollector<'a> {
         });
     }
 
-    /// Finds root workspace crates that depend on the vulnerable crate(s) by building
-    /// reverse dependency graphs and collecting nodes with empty parents.
+    /// Finds root workspace crates that depend on the vulnerable crate(s) by processing
+    /// dependency paths collected from reverse dependency graphs.
     /// Assumes root crates are workspace members (which always have manifests).
     fn find_root_locations(
         &self,
-        diag: &crate::diag::Diag,
-        grapher: &diag::InclusionGrapher<'_>,
+        paths: &[diag::DependencyPath],
         files: &crate::diag::Files,
     ) -> Vec<Location> {
-        let max_feature_depth = if diag.with_features {
-            self.feature_depth.map(|d| d as usize).unwrap_or(1)
-        } else {
-            0
-        };
-
         let Some(krate_spans) = self.krate_spans else {
             return Vec::new();
         };
@@ -205,33 +230,27 @@ impl<'a> SarifCollector<'a> {
         let mut locations = Vec::new();
         let mut seen_locations: HashSet<(String, usize, usize)> = HashSet::new();
 
-        for graph_node in &diag.graph_nodes {
-            let Ok(graph) = grapher.build_graph(graph_node, max_feature_depth) else {
+        for path in paths {
+            // path.crates[0] is the direct dependency of the root crate.
+            // Skip if empty (vulnerable crate is itself a workspace member).
+            let Some((dep_name, dep_version, _)) = path.crates.first() else {
                 continue;
             };
 
-            for path in graph.collect_root_paths() {
-                // path.crates[0] is the direct dependency of the root crate.
-                // Skip if empty (vulnerable crate is itself a workspace member).
-                let Some((dep_name, dep_version, _)) = path.crates.first() else {
-                    continue;
-                };
+            let Some(loc) = self.find_dependency_location(
+                &path.root_kid,
+                dep_name,
+                dep_version,
+                krate_spans,
+                files,
+            ) else {
+                continue;
+            };
 
-                let Some(loc) = self.find_dependency_location(
-                    &path.root_kid,
-                    dep_name,
-                    dep_version,
-                    krate_spans,
-                    files,
-                ) else {
-                    continue;
-                };
-
-                // Deduplicate by file URI and span
-                let key = self.location_key(&loc);
-                if seen_locations.insert(key) {
-                    locations.push(loc);
-                }
+            // Deduplicate by file URI and span
+            let key = self.location_key(&loc);
+            if seen_locations.insert(key) {
+                locations.push(loc);
             }
         }
 

@@ -4,7 +4,7 @@ pub mod krate_spans;
 mod sink;
 
 pub use grapher::{
-    InclusionGrapher, GraphNode as DependencyGraphNode, cs_diag_to_json, diag_to_json, write_graph_as_text,
+    DependencyPath, InclusionGrapher, GraphNode as DependencyGraphNode, cs_diag_to_json, diag_to_json, write_compact_graph_as_text, write_graph_as_text,
 };
 pub use sink::{DiagnosticOverrides, ErrorSink};
 
