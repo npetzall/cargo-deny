@@ -71,15 +71,21 @@ pub(crate) fn diag(diag: Diagnostic, code: Code) -> Diag {
     Diag::new(diag, Some(crate::diag::DiagnosticCode::License(code)))
 }
 
-pub(crate) struct Unlicensed<'a> {
+pub(crate) struct Unlicensed {
     pub(crate) severity: Severity,
-    pub(crate) krate: &'a Krate,
+    pub(crate) krate_name: String,
+    pub(crate) file_id: crate::diag::FileId,
+    pub(crate) span: std::ops::Range<usize>,
 }
 
-impl<'a> From<Unlicensed<'a>> for Diag {
-    fn from(u: Unlicensed<'a>) -> Self {
+impl From<Unlicensed> for Diag {
+    fn from(u: Unlicensed) -> Self {
         diag(
-            Diagnostic::new(u.severity).with_message(format_args!("{} is unlicensed", u.krate)),
+            Diagnostic::new(u.severity)
+                .with_message(format_args!("{} is unlicensed", u.krate_name))
+                .with_label(
+                    Label::primary(u.file_id, u.span).with_message("license field location"),
+                ),
             Code::Unlicensed,
         )
     }
@@ -198,15 +204,23 @@ impl From<EmptyLicenseField> for Diag {
     }
 }
 
-pub(crate) struct NoLicenseField<'k>(pub(crate) &'k Krate);
+pub(crate) struct NoLicenseField {
+    pub(crate) krate_name: String,
+    pub(crate) file_id: crate::diag::FileId,
+    pub(crate) span: std::ops::Range<usize>,
+}
 
-impl From<NoLicenseField<'_>> for Diag {
-    fn from(value: NoLicenseField<'_>) -> Self {
+impl From<NoLicenseField> for Diag {
+    fn from(value: NoLicenseField) -> Self {
         diag(
-            Diagnostic::warning().with_message(format!(
-                "license expression was not specified in manifest for crate '{}'",
-                value.0
-            )),
+            Diagnostic::warning()
+                .with_message(format!(
+                    "license expression was not specified in manifest for crate '{}'",
+                    value.krate_name
+                ))
+                .with_label(
+                    Label::secondary(value.file_id, value.span).with_message("missing license field"),
+                ),
             Code::NoLicenseField,
         )
     }

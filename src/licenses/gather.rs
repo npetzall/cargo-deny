@@ -1,7 +1,7 @@
 use super::cfg::{FileSource, ValidClarification, ValidConfig};
 use crate::{
     Krate, Path, PathBuf,
-    diag::{Diag, Diagnostic, FileId, Files, Label},
+    diag::{Diag, Diagnostic, FileId, Files, Label, Severity},
     licenses::diags,
 };
 use rayon::prelude::*;
@@ -726,7 +726,37 @@ impl Gatherer {
                         .into(),
                     );
                 } else {
-                    diags.push(diags::NoLicenseField(krate).into());
+                    // License field is missing, point to [package] section
+                    let files = files_lock.read();
+                    let (file_id, span) = if let Some(file_id) = files.id_for_path(&krate.manifest_path) {
+                        let manifest = files.source(file_id);
+                        // Use toml_span to get the package section span
+                        Self::get_package_section_span(manifest)
+                            .map(|s| (file_id, s))
+                            .unwrap_or((file_id, 0..1))
+                    } else {
+                        drop(files);
+                        // File not loaded, read it and add it
+                        let manifest = std::fs::read_to_string(&krate.manifest_path)
+                            .unwrap_or_else(|_| format!(
+                                "[package]\nname = \"{}\"\nversion = \"{}\"\n",
+                                krate.name,
+                                krate.version,
+                            ));
+                        let file_id = files_lock.write().add(&krate.manifest_path, manifest.clone());
+                        // Use toml_span to get the package section span
+                        Self::get_package_section_span(&manifest)
+                            .map(|s| (file_id, s))
+                            .unwrap_or((file_id, 0..1))
+                    };
+                    diags.push(
+                        diags::NoLicenseField {
+                            krate_name: krate.name.clone(),
+                            file_id,
+                            span,
+                        }
+                        .into(),
+                    );
                 }
 
                 // 3
@@ -823,16 +853,38 @@ impl Gatherer {
                     }
                 }
 
-                // Just get a label for the crate name
-                let (id, nspan) = get_span("name");
-                diags.push(diags::diag(
-                    Diagnostic::warning()
-                        .with_message(
-                            "a valid license expression could not be retrieved for the crate",
-                        )
-                        .with_label(Label::primary(id, nspan)),
-                    diags::Code::Unlicensed,
-                ));
+                // License couldn't be determined, point to [package] section
+                let files = files_lock.read();
+                let (file_id, span) = if let Some(file_id) = files.id_for_path(&krate.manifest_path) {
+                    let manifest = files.source(file_id);
+                    // Use toml_span to get the package section span
+                    Self::get_package_section_span(manifest)
+                        .map(|s| (file_id, s))
+                        .unwrap_or((file_id, 0..1))
+                } else {
+                    drop(files);
+                    // File not loaded, read it and add it
+                    let manifest = std::fs::read_to_string(&krate.manifest_path)
+                        .unwrap_or_else(|_| format!(
+                            "[package]\nname = \"{}\"\nversion = \"{}\"\n",
+                            krate.name,
+                            krate.version,
+                        ));
+                    let file_id = files_lock.write().add(&krate.manifest_path, manifest.clone());
+                    // Use toml_span to get the package section span
+                    Self::get_package_section_span(&manifest)
+                        .map(|s| (file_id, s))
+                        .unwrap_or((file_id, 0..1))
+                };
+                diags.push(
+                    diags::Unlicensed {
+                        severity: Severity::Warning,
+                        krate_name: krate.name.clone(),
+                        file_id,
+                        span,
+                    }
+                    .into(),
+                );
 
                 // Well, we tried our very best. Actually that's not true, we could scan for license
                 // files not prefixed by LICENSE, and recurse into subdirectories, but honestly
@@ -850,6 +902,59 @@ impl Gatherer {
         summary.nfos.par_sort_by_key(|nfo| nfo.krate);
 
         summary
+    }
+
+    /// Gets the span for the [package] section using toml_span.
+    /// Returns the span from [package] to the next section or EOF.
+    fn get_package_section_span(manifest: &str) -> Option<std::ops::Range<usize>> {
+        // Try to parse with toml_span to get the [package] section span
+        let root = toml_span::parse(manifest).ok()?;
+        let package_value = root.pointer("/package")?;
+        let table = package_value.as_table()?;
+        
+        // Get the first and last spans in the table to determine section boundaries
+        let mut first_span: Option<toml_span::Span> = None;
+        let mut last_span: Option<toml_span::Span> = None;
+        
+        for (key, value) in table.iter() {
+            let key_start = key.span.start;
+            let value_end = value.span.end;
+            
+            if first_span.is_none() || key_start < first_span.unwrap().start {
+                first_span = Some(toml_span::Span { start: key_start, end: key_start });
+            }
+            if last_span.is_none() || value_end > last_span.unwrap().end {
+                last_span = Some(toml_span::Span { start: value_end, end: value_end });
+            }
+        }
+        
+        let (first, last) = (first_span?, last_span?);
+        
+        // Find the [package] header before the first key
+        let span_start = manifest[..first.start]
+            .rfind("[package]")
+            .filter(|&pos| {
+                // Verify it's a standalone [package] section
+                manifest.get(pos + 8..pos + 9).map_or(false, |c| c == "]")
+            })?;
+        
+        // Find the end - look for next section or use the end of the last value
+        let after_last_value = last.end;
+        let span_end = manifest[after_last_value..]
+            .match_indices("\n[")
+            .find_map(|(pos, _)| {
+                let line_start = after_last_value + pos + 1;
+                let line_rest = manifest.get(line_start..)?;
+                // Check if it's a new section (not [package.*)
+                if !line_rest.starts_with("[package.") {
+                    Some(line_start)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(manifest.len());  // EOF if no next section found
+        
+        Some(span_start..span_end)
     }
 
     #[inline]
