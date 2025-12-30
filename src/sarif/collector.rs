@@ -45,12 +45,12 @@ impl SarifCollector {
     pub fn add_diagnostics(&mut self, pack: Pack, files: &crate::diag::Files) {
         for diag in pack {
             let Some(code) = diag.code else {
-                return;
+                continue;
             };
 
             // Filter out note and help severities - SARIF should only contain actionable issues
             if matches!(diag.diag.severity, Severity::Note | Severity::Help) {
-                return;
+                continue;
             }
 
             let locations = diag
