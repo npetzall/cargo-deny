@@ -6,7 +6,7 @@ use crate::sarif::model::{
 };
 use crate::{
     Kid, Krates,
-    diag::{self, DiagnosticCode, Pack, Severity},
+    diag::{self, DiagnosticCode, InclusionGrapher, Pack, Severity, write_graph_as_text},
 };
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
@@ -83,7 +83,7 @@ impl SarifCollector {
         let krates_list: smallvec::SmallVec<[Kid; 2]> = 
             diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
 
-        let (message, locations) = if let Some(diag::Extra::Advisory(advisory)) = &diag.extra {
+        let (mut message, locations) = if let Some(diag::Extra::Advisory(advisory)) = &diag.extra {
             advisory::process_advisory(
                 advisory,
                 &krates_list,
@@ -94,6 +94,9 @@ impl SarifCollector {
             // Fallback for non-advisory (shouldn't happen in this function)
             (Message::text(diag.diag.message.clone()), self.extract_locations(&diag, files))
         };
+
+        // Add dependency tree to message if available
+        message = self.add_dependency_tree_to_message(message, &diag.graph_nodes, krates, diag.with_features);
 
         self.create_diagnostic_data(code, diag.diag.severity, message, locations, krates_list, diag.extra)
     }
@@ -106,14 +109,163 @@ impl SarifCollector {
         files: &crate::diag::Files,
         krates: Option<&Krates>,
     ) -> Vec<DiagnosticData> {
-        let message = Message::text(diag.diag.message.clone());
-        let initial_locations = self.extract_locations(&diag, files);
         let krates_list: smallvec::SmallVec<[Kid; 2]> = 
             diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
 
-        let locations = self.resolve_locations(code, initial_locations, &krates_list, krates);
+        // Group labels by physical location and build enhanced message
+        let (location, mut message) = self.process_license_diagnostic(&diag, files);
 
-        self.create_diagnostic_data(code, diag.diag.severity, message, locations, krates_list, diag.extra)
+        // Add dependency tree to message if available
+        message = self.add_dependency_tree_to_message(message, &diag.graph_nodes, krates, diag.with_features);
+
+        // If no location from labels, fall back to building root crate locations (for Unlicensed, NoLicenseField, etc.)
+        let locations = if let Some(loc) = location {
+            vec![loc]
+        } else {
+            // Fall back to root crate locations if we have krates information
+            if let Some(krates_ref) = krates {
+                self.build_root_crate_locations(&krates_list, krates_ref)
+            } else {
+                Vec::new()
+            }
+        };
+
+        // Create diagnostic data with location in a Vec (1:1 relationship)
+        vec![DiagnosticData {
+            code,
+            krates: krates_list,
+            severity: diag.diag.severity,
+            message,
+            locations,
+            extra: diag.extra,
+        }]
+    }
+
+    /// Processes license diagnostics by combining label messages
+    /// All labels for a license diagnostic point to the same file, so we just collect all messages
+    fn process_license_diagnostic(
+        &self,
+        diag: &diag::Diag,
+        files: &crate::diag::Files,
+    ) -> (Option<Location>, Message) {
+        // Collect label info (message and license name from snippet) and find the first valid location
+        struct LabelInfo {
+            license_name: Option<String>,
+            message: String,
+        }
+        
+        let mut label_infos = Vec::new();
+        let mut first_location: Option<Location> = None;
+
+        for label in &diag.diag.labels {
+            let Ok(location) = files.sarif_location(label) else {
+                continue;
+            };
+            
+            // Extract license name from snippet before moving location
+            let license_name = location
+                .physical_location
+                .as_ref()
+                .and_then(|pl| pl.region.snippet.as_ref())
+                .map(|s| s.trim().to_string());
+            
+            // Store the first valid location
+            if first_location.is_none() {
+                first_location = Some(location);
+            }
+            
+            if !label.message.is_empty() {
+                label_infos.push(LabelInfo {
+                    license_name,
+                    message: label.message.clone(),
+                });
+            }
+        }
+
+        // Build enhanced message with all label details and notes
+        let base_message = diag.diag.message.clone();
+        let mut md = String::new();
+        md.push_str(&base_message);
+        
+        // Add details section if we have label messages
+        if !label_infos.is_empty() {
+            md.push_str("\n\n## Details\n\n");
+            
+            // Add the full license expression snippet from the first location
+            if let Some(ref location) = first_location {
+                if let Some(ref physical_location) = location.physical_location {
+                    if let Some(ref snippet) = physical_location.region.snippet {
+                        md.push_str(&format!("**Location:** `{}`\n\n", snippet.trim()));
+                    }
+                }
+            }
+            
+            // Add all label messages as bullet points with license names in code blocks
+            for info in &label_infos {
+                if let Some(ref license_name) = info.license_name {
+                    md.push_str(&format!("- `{}`: {}\n", license_name, info.message));
+                } else {
+                    md.push_str(&format!("- {}\n", info.message));
+                }
+            }
+            md.push('\n');
+        }
+        
+        // Add notes section if available (license details, etc.)
+        if !diag.diag.notes.is_empty() {
+            md.push_str("## License Information\n\n");
+            
+            // Parse notes to create one list per license
+            // Notes format: "MIT - MIT License:" followed by indented items like "  - OSI approved"
+            let mut current_license: Option<String> = None;
+            let mut current_items: Vec<String> = Vec::new();
+            
+            for note in &diag.diag.notes {
+                let trimmed = note.trim();
+                
+                // Check if this is a license header (ends with ":" and doesn't start with "  -")
+                if trimmed.ends_with(':') && !trimmed.starts_with("  -") {
+                    // Output previous license's list if we have one
+                    if let Some(ref license) = current_license {
+                        md.push_str(&format!("**{}**\n\n", license));
+                        for item in &current_items {
+                            md.push_str(&format!("- {}\n", item));
+                        }
+                        md.push('\n');
+                    }
+                    // Start new license
+                    current_license = Some(trimmed.trim_end_matches(':').to_string());
+                    current_items.clear();
+                } else if trimmed.starts_with("  -") {
+                    // This is an item for the current license
+                    let item = trimmed.trim_start_matches("  -").trim();
+                    current_items.push(item.to_string());
+                } else if !trimmed.is_empty() {
+                    // Standalone note (not part of a license block)
+                    if current_license.is_none() {
+                        md.push_str(&format!("- {}\n", trimmed));
+                    } else {
+                        current_items.push(trimmed.to_string());
+                    }
+                }
+            }
+            
+            // Output the last license's list if we have one
+            if let Some(ref license) = current_license {
+                md.push_str(&format!("**{}**\n\n", license));
+                for item in &current_items {
+                    md.push_str(&format!("- {}\n", item));
+                }
+            }
+        }
+        
+        let message = Message {
+            text: base_message,
+            markdown: Some(md),
+        };
+
+        // Return the first location (all labels point to the same file)
+        (first_location, message)
     }
 
     /// Handles processing of other diagnostic types (Bans, Sources, General, etc.), returning diagnostic data
@@ -124,12 +276,15 @@ impl SarifCollector {
         files: &crate::diag::Files,
         krates: Option<&Krates>,
     ) -> Vec<DiagnosticData> {
-        let message = Message::text(diag.diag.message.clone());
+        let mut message = Message::text(diag.diag.message.clone());
         let initial_locations = self.extract_locations(&diag, files);
         let krates_list: smallvec::SmallVec<[Kid; 2]> = 
             diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
 
-        let locations = self.resolve_locations(code, initial_locations, &krates_list, krates);
+        let locations = self.handle_default_locations(initial_locations, &krates_list, krates);
+
+        // Add dependency tree to message if available
+        message = self.add_dependency_tree_to_message(message, &diag.graph_nodes, krates, diag.with_features);
 
         self.create_diagnostic_data(code, diag.diag.severity, message, locations, krates_list, diag.extra)
     }
@@ -141,50 +296,6 @@ impl SarifCollector {
             .iter()
             .filter_map(|label| files.sarif_location(label).ok())
             .collect()
-    }
-
-    /// Resolves locations based on diagnostic code type
-    fn resolve_locations(
-        &self,
-        code: DiagnosticCode,
-        initial_locations: Vec<Location>,
-        krates_list: &[Kid],
-        krates: Option<&Krates>,
-    ) -> Vec<Location> {
-        match code {
-            DiagnosticCode::Advisory(_) => {
-                // Advisory locations are handled in add_advisory via the advisory module
-                // This should not be called for advisories, but kept for safety
-                if let Some(krates_ref) = krates {
-                    self.build_root_crate_locations(krates_list, krates_ref)
-                } else {
-                    Vec::new()
-                }
-            }
-            DiagnosticCode::License(_) => {
-                self.handle_license_locations(initial_locations, krates_list, krates)
-            }
-            _ => self.handle_default_locations(initial_locations, krates_list, krates),
-        }
-    }
-
-    /// Handles location resolution for license diagnostics
-    /// Licenses may or may not have locations depending on the case
-    fn handle_license_locations(
-        &self,
-        initial_locations: Vec<Location>,
-        krates_list: &[Kid],
-        krates: Option<&Krates>,
-    ) -> Vec<Location> {
-        if initial_locations.is_empty() {
-            if let Some(krates_ref) = krates {
-                self.build_root_crate_locations(krates_list, krates_ref)
-            } else {
-                Vec::new()
-            }
-        } else {
-            initial_locations
-        }
     }
 
     /// Handles location resolution for other diagnostic types (Bans, Sources, etc.)
@@ -203,6 +314,59 @@ impl SarifCollector {
             }
         } else {
             initial_locations
+        }
+    }
+
+    /// Adds dependency tree information to the message markdown if graph nodes and krates are available
+    fn add_dependency_tree_to_message(
+        &self,
+        message: Message,
+        graph_nodes: &[diag::GraphNode],
+        krates: Option<&Krates>,
+        with_features: bool,
+    ) -> Message {
+        // Only add tree if we have graph nodes and krates
+        if graph_nodes.is_empty() || krates.is_none() {
+            return message;
+        }
+
+        let krates_ref = krates.unwrap();
+        let grapher = InclusionGrapher::new(krates_ref);
+        let max_feature_depth = if with_features { usize::MAX } else { 0 };
+
+        let mut trees = Vec::new();
+        for gn in graph_nodes {
+            if let Ok(graph) = grapher.build_graph(gn, max_feature_depth) {
+                let tree_text = write_graph_as_text(&graph);
+                if !tree_text.trim().is_empty() {
+                    trees.push(tree_text);
+                }
+            }
+        }
+
+        // If we have trees, add them to the markdown
+        if !trees.is_empty() {
+            let mut md = message.markdown.unwrap_or_else(|| {
+                // If no markdown exists, create it from the text
+                message.text.clone()
+            });
+
+            md.push_str("\n\n## Dependency Tree\n\n");
+            for (i, tree) in trees.iter().enumerate() {
+                if trees.len() > 1 {
+                    md.push_str(&format!("### Crate {}\n\n", i + 1));
+                }
+                md.push_str("```\n");
+                md.push_str(tree);
+                md.push_str("```\n\n");
+            }
+
+            Message {
+                text: message.text,
+                markdown: Some(md),
+            }
+        } else {
+            message
         }
     }
 
@@ -406,7 +570,7 @@ impl SarifCollector {
                 // The path is already in correct order: [root, dep1, dep2, ..., violating_crate]
                 // Find dep1 (the first dependency in the path) in the root crate's manifest
                 // Only check dep1 - if it's not directly declared in root, we can't find it
-                let (dep_info, dep1_manifest_name, manifest_path_to_use) = if path.len() > 1 {
+                let (dep_info, manifest_path_to_use) = if path.len() > 1 {
                     let dep1_kid = &path[1];
                     if let Some(root_nid) = krates.nid_for_kid(root_kid) {
                         // Check if dep1 is directly declared in the root crate
@@ -444,18 +608,15 @@ impl SarifCollector {
                                     (info, root_krate.manifest_path.clone())
                                 };
                                 
-                                Some((manifest_info, Some(dep_name), manifest_path))
+                                Some((manifest_info, manifest_path))
                             })
-                            .unwrap_or((None, None, root_krate.manifest_path.clone()))
+                            .unwrap_or((None, root_krate.manifest_path.clone()))
                     } else {
-                        (None, None, root_krate.manifest_path.clone())
+                        (None, root_krate.manifest_path.clone())
                     }
                 } else {
-                    (None, None, root_krate.manifest_path.clone())
+                    (None, root_krate.manifest_path.clone())
                 };
-
-                // Build dependency path message: root / dep1 / dep2 / ... / violating_crate
-                let path_message = self.build_dependency_path_message(&path, dep1_manifest_name);
 
                 // Create Location with physical location pointing to root's Cargo.toml or workspace manifest
                 let (start_line, snippet, byte_offset, byte_length) = dep_info
@@ -486,7 +647,7 @@ impl SarifCollector {
                             byte_offset,
                             byte_length,
                             snippet,
-                            message: Some(path_message),
+                            message: None,
                         },
                     }),
                 });
@@ -746,30 +907,6 @@ impl SarifCollector {
             .to_string();
         
         Some((line_number, line_content, byte_offset, byte_length))
-    }
-
-    /// Builds a dependency path message in the format: name@version / name@version / ...
-    /// Uses manifest names where available (for dep1), package names otherwise
-    fn build_dependency_path_message(
-        &self,
-        path: &[Kid],
-        dep1_manifest_name: Option<&str>,
-    ) -> String {
-        let mut parts = Vec::new();
-
-        for (idx, kid) in path.iter().enumerate() {
-            let name = if idx == 1 {
-                // Use manifest name for dep1 if available, otherwise fall back to package name
-                dep1_manifest_name.unwrap_or_else(|| kid.name())
-            } else {
-                // Use package name for root and other dependencies
-                kid.name()
-            };
-            let version = kid.version();
-            parts.push(format!("{}@{}", name, version));
-        }
-
-        parts.join(" / ")
     }
 
     /// Finds all dependency paths from any workspace member (root) to the given crate
