@@ -7,13 +7,15 @@ use crate::{
     Kid,
     diag::{self, DiagnosticCode, Pack, Severity},
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
 
 /// Collects diagnostics and converts them to SARIF format
-pub struct SarifCollector {
+pub struct SarifCollector<'a> {
     diagnostics: Vec<DiagnosticData>,
     rules: BTreeMap<DiagnosticCode, RuleData>,
+    grapher: Option<diag::InclusionGrapher<'a>>,
+    feature_depth: Option<u32>,
 }
 
 struct DiagnosticData {
@@ -31,17 +33,15 @@ struct RuleData {
     description: &'static str,
 }
 
-#[allow(clippy::derivable_impls)]
-impl Default for SarifCollector {
-    fn default() -> Self {
+impl<'a> SarifCollector<'a> {
+    pub fn new(krates: Option<&'a crate::Krates>, feature_depth: Option<u32>) -> Self {
         Self {
             diagnostics: Vec::new(),
             rules: BTreeMap::new(),
+            grapher: krates.map(diag::InclusionGrapher::new),
+            feature_depth,
         }
     }
-}
-
-impl SarifCollector {
     pub fn add_diagnostics(&mut self, pack: Pack, files: &crate::diag::Files) {
         for diag in pack {
             // Filter out note and help severities - SARIF should only contain actionable issues
@@ -64,13 +64,13 @@ impl SarifCollector {
     fn process_advisory(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {
         let code = diag.code.expect("code should be Some for Advisory");
 
-        // Advisories point to Cargo.lock which is filtered out, so locations will be empty
-        let locations = diag
-            .diag
-            .labels
-            .iter()
-            .filter_map(|label| files.sarif_location(label).ok())
-            .collect();
+        // Advisories point to Cargo.lock which is filtered out, so find root locations
+        // using the dependency graph. If grapher is not available, locations will be empty.
+        let locations = if let Some(grapher) = &self.grapher {
+            self.find_root_locations(&diag, grapher, files)
+        } else {
+            Vec::new()
+        };
 
         let message = match &diag.extra {
             Some(diag::Extra::Advisory(advisory)) => {
@@ -175,6 +175,91 @@ impl SarifCollector {
             severity: diag.diag.severity,
             description: code.description(),
         });
+    }
+
+    /// Finds root workspace crates that depend on the vulnerable crate(s) by building
+    /// reverse dependency graphs and collecting nodes with empty parents.
+    fn find_root_locations(
+        &self,
+        diag: &crate::diag::Diag,
+        grapher: &diag::InclusionGrapher<'_>,
+        files: &crate::diag::Files,
+    ) -> Vec<Location> {
+        let max_feature_depth = if diag.with_features {
+            self.feature_depth.map(|d| d as usize).unwrap_or(1)
+        } else {
+            0
+        };
+
+        let mut root_kids = HashSet::new();
+        let mut locations = Vec::new();
+
+        // Build graphs for each vulnerable crate and collect root nodes
+        for graph_node in &diag.graph_nodes {
+            if let Ok(graph) = grapher.build_graph(graph_node, max_feature_depth) {
+                self.collect_root_kids(&graph, grapher, &mut root_kids);
+            }
+        }
+
+        // Convert root crate IDs to locations
+        for kid in root_kids {
+            if let Some(km) = grapher
+                .krates
+                .krates_by_name(kid.name())
+                .find(|km| km.krate.id == kid)
+            {
+                if let Some(loc) = self.create_manifest_location(&km.krate.manifest_path, files) {
+                    locations.push(loc);
+                }
+            }
+        }
+
+        locations
+    }
+
+    /// Collects root crate IDs from the graph using the public API.
+    fn collect_root_kids(
+        &self,
+        graph: &crate::diag::DependencyGraphNode,
+        grapher: &diag::InclusionGrapher<'_>,
+        root_kids: &mut HashSet<Kid>,
+    ) {
+        // Use the public method to collect root crates
+        for (name, version) in graph.collect_root_crates() {
+            if let Some(km) = grapher
+                .krates
+                .krates_by_name(&name)
+                .find(|km| km.krate.version == version)
+            {
+                root_kids.insert(km.krate.id.clone());
+            }
+        }
+    }
+
+    /// Creates a SARIF location for a manifest file.
+    fn create_manifest_location(
+        &self,
+        manifest_path: &crate::Path,
+        _files: &crate::diag::Files,
+    ) -> Option<Location> {
+        use crate::sarif::model;
+
+        // Create a location pointing to the beginning of the file
+        // We use byte offset 0 and length 0 to point to the start
+        Some(Location {
+            physical_location: model::PhysicalLocation {
+                artifact_location: model::ArtifactLocation {
+                    uri: format!("file://{}", manifest_path),
+                },
+                region: model::Region {
+                    start_line: 0,
+                    byte_offset: 0,
+                    byte_length: 0,
+                    snippet: None,
+                    message: None,
+                },
+            },
+        })
     }
 
     fn process_other(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {

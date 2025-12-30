@@ -361,3 +361,25 @@ pub fn write_graph_as_text(root: &GraphNode) -> String {
     write(root, &mut out, &mut levels);
     out
 }
+
+impl GraphNode {
+    /// Collects all root nodes (nodes with empty parents) from the graph.
+    /// Returns a vector of (name, version) tuples for each root crate.
+    pub fn collect_root_crates(&self) -> Vec<(String, semver::Version)> {
+        let mut roots = Vec::new();
+        self.collect_root_crates_internal(&mut roots);
+        roots
+    }
+
+    fn collect_root_crates_internal(&self, roots: &mut Vec<(String, semver::Version)>) {
+        if self.parents.is_empty() {
+            if let NodeInner::Krate { name, version, .. } = &self.inner {
+                roots.push((name.clone(), version.clone()));
+            }
+        } else {
+            for parent in &self.parents {
+                parent.collect_root_crates_internal(roots);
+            }
+        }
+    }
+}

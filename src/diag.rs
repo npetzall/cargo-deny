@@ -3,7 +3,9 @@ mod grapher;
 pub mod krate_spans;
 mod sink;
 
-pub use grapher::{InclusionGrapher, cs_diag_to_json, diag_to_json, write_graph_as_text};
+pub use grapher::{
+    InclusionGrapher, GraphNode as DependencyGraphNode, cs_diag_to_json, diag_to_json, write_graph_as_text,
+};
 pub use sink::{DiagnosticOverrides, ErrorSink};
 
 use std::{collections::BTreeMap, ops::Range};
