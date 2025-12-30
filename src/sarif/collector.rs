@@ -44,126 +44,167 @@ impl Default for SarifCollector {
 impl SarifCollector {
     pub fn add_diagnostics(&mut self, pack: Pack, files: &crate::diag::Files) {
         for diag in pack {
-            let Some(code) = diag.code else {
-                continue;
-            };
-
             // Filter out note and help severities - SARIF should only contain actionable issues
             if matches!(diag.diag.severity, Severity::Note | Severity::Help) {
                 continue;
             }
 
-            let locations = diag
-                .diag
-                .labels
-                .iter()
-                .filter_map(|label| files.sarif_location(label).ok())
-                .collect();
+            match diag.code {
+                None => continue,
+                Some(DiagnosticCode::Advisory(_)) => {
+                    self.process_advisory(diag, files);
+                }
+                Some(_) => {
+                    self.process_other(diag, files);
+                }
+            }
+        }
+    }
 
-            let message = match &diag.extra {
-                None => Message::text(diag.diag.message),
-                Some(diag::Extra::Advisory(advisory)) => {
-                    let mut md = String::new();
+    fn process_advisory(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {
+        let code = diag.code.expect("code should be Some for Advisory");
 
-                    let meta = &advisory.metadata;
+        // Advisories point to Cargo.lock which is filtered out, so locations will be empty
+        let locations = diag
+            .diag
+            .labels
+            .iter()
+            .filter_map(|label| files.sarif_location(label).ok())
+            .collect();
 
-                    md.push_str("# ");
-                    if let Some(url) = &meta.url {
-                        write!(&mut md, "[{}]({url})", meta.id).unwrap();
-                    } else {
-                        md.push_str(meta.id.as_str());
+        let message = match &diag.extra {
+            Some(diag::Extra::Advisory(advisory)) => {
+                let mut md = String::new();
+
+                let meta = &advisory.metadata;
+
+                md.push_str("# ");
+                if let Some(url) = &meta.url {
+                    write!(&mut md, "[{}]({url})", meta.id).unwrap();
+                } else {
+                    md.push_str(meta.id.as_str());
+                }
+
+                md.push('\n');
+                md.push_str(&meta.title);
+                md.push('\n');
+
+                md.push_str("## Description\n");
+                md.push_str(&meta.description);
+                md.push_str("\n\n");
+
+                if !advisory.versions.unaffected().is_empty() {
+                    md.push_str("## Unaffected\n");
+                    for un in advisory.versions.unaffected() {
+                        writeln!(&mut md, "- `{un}`").unwrap();
                     }
-
                     md.push('\n');
-                    md.push_str(&meta.title);
+                }
+
+                if !advisory.versions.patched().is_empty() {
+                    md.push_str("## Patched\n");
+                    for un in advisory.versions.patched() {
+                        writeln!(&mut md, "- `{un}`").unwrap();
+                    }
                     md.push('\n');
+                }
 
-                    md.push_str("## Description\n");
-                    md.push_str(&meta.description);
-                    md.push_str("\n\n");
+                if let Some(affected) = &advisory.affected {
+                    md.push_str("## Affected\n");
+                    if !affected.functions.is_empty() {
+                        md.push_str("| Functions | Versions |\n|---|---|\n");
+                        for (path, reqs) in &affected.functions {
+                            write!(&mut md, "|`{path}`|").unwrap();
 
-                    if !advisory.versions.unaffected().is_empty() {
-                        md.push_str("## Unaffected\n");
-                        for un in advisory.versions.unaffected() {
-                            writeln!(&mut md, "- `{un}`").unwrap();
-                        }
-                        md.push('\n');
-                    }
-
-                    if !advisory.versions.patched().is_empty() {
-                        md.push_str("## Patched\n");
-                        for un in advisory.versions.patched() {
-                            writeln!(&mut md, "- `{un}`").unwrap();
-                        }
-                        md.push('\n');
-                    }
-
-                    if let Some(affected) = &advisory.affected {
-                        md.push_str("## Affected\n");
-                        if !affected.functions.is_empty() {
-                            md.push_str("| Functions | Versions |\n|---|---|\n");
-                            for (path, reqs) in &affected.functions {
-                                write!(&mut md, "|`{path}`|").unwrap();
-
-                                for (i, req) in reqs.iter().enumerate() {
-                                    if i > 0 {
-                                        md.push_str(", ");
-                                    }
-
-                                    write!(&mut md, "`{req}`").unwrap();
+                            for (i, req) in reqs.iter().enumerate() {
+                                if i > 0 {
+                                    md.push_str(", ");
                                 }
 
-                                md.push_str("|\n");
+                                write!(&mut md, "`{req}`").unwrap();
                             }
 
-                            md.push('\n');
+                            md.push_str("|\n");
                         }
 
-                        if !affected.arch.is_empty() {
-                            md.push_str("### Arches\n");
-                            for arch in &affected.arch {
-                                md.push_str("- ");
-                                md.push_str(arch.as_str());
-                                md.push('\n');
-                            }
-                            md.push('\n');
-                        }
-
-                        if !affected.os.is_empty() {
-                            md.push_str("### Operating Systems\n");
-                            for os in &affected.os {
-                                md.push_str("- ");
-                                md.push_str(os.as_str());
-                                md.push('\n');
-                            }
-                            md.push('\n');
-                        }
+                        md.push('\n');
                     }
 
-                    Message {
-                        text: meta.title.clone(),
-                        markdown: Some(md),
+                    if !affected.arch.is_empty() {
+                        md.push_str("### Arches\n");
+                        for arch in &affected.arch {
+                            md.push_str("- ");
+                            md.push_str(arch.as_str());
+                            md.push('\n');
+                        }
+                        md.push('\n');
+                    }
+
+                    if !affected.os.is_empty() {
+                        md.push_str("### Operating Systems\n");
+                        for os in &affected.os {
+                            md.push_str("- ");
+                            md.push_str(os.as_str());
+                            md.push('\n');
+                        }
+                        md.push('\n');
                     }
                 }
-            };
 
-            // Add to diagnostics
-            self.diagnostics.push(DiagnosticData {
-                code,
-                krates: diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect(),
-                severity: diag.diag.severity,
-                message,
-                locations,
-                extra: diag.extra,
-            });
+                Message {
+                    text: meta.title.clone(),
+                    markdown: Some(md),
+                }
+            }
+            _ => Message::text(diag.diag.message),
+        };
 
-            // Add to rules if not already present
-            self.rules.entry(code).or_insert(RuleData {
-                code,
-                severity: diag.diag.severity,
-                description: code.description(),
-            });
-        }
+        // Add to diagnostics
+        self.diagnostics.push(DiagnosticData {
+            code,
+            krates: diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect(),
+            severity: diag.diag.severity,
+            message,
+            locations,
+            extra: diag.extra,
+        });
+
+        // Add to rules if not already present
+        self.rules.entry(code).or_insert(RuleData {
+            code,
+            severity: diag.diag.severity,
+            description: code.description(),
+        });
+    }
+
+    fn process_other(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {
+        let code = diag.code.expect("code should be Some for other diagnostics");
+
+        let locations = diag
+            .diag
+            .labels
+            .iter()
+            .filter_map(|label| files.sarif_location(label).ok())
+            .collect();
+
+        let message = Message::text(diag.diag.message);
+
+        // Add to diagnostics
+        self.diagnostics.push(DiagnosticData {
+            code,
+            krates: diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect(),
+            severity: diag.diag.severity,
+            message,
+            locations,
+            extra: diag.extra,
+        });
+
+        // Add to rules if not already present
+        self.rules.entry(code).or_insert(RuleData {
+            code,
+            severity: diag.diag.severity,
+            description: code.description(),
+        });
     }
 
     pub fn generate_sarif(self) -> SarifLog {
