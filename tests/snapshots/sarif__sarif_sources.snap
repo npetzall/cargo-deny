@@ -9,7 +9,36 @@ expression: s
       "results": [
         {
           "level": "error",
-          "locations": [],
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "path+file:///home/npetzall/repos/npetzall/cargo-deny/tests/test_data/sources#sources@0.1.0",
+                  "index": 0,
+                  "kind": "root-dependency",
+                  "name": "sources",
+                  "parentIndex": -1
+                },
+                {
+                  "fullyQualifiedName": "git+https://github.com/dtolnay/anyhow?branch=master#anyhow@1.0.68",
+                  "index": 1,
+                  "kind": "violating-dependency",
+                  "name": "anyhow",
+                  "parentIndex": 0
+                }
+              ],
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://{CWD}/tests/test_data/sources/Cargo.toml"
+                },
+                "region": {
+                  "byteLength": 0,
+                  "byteOffset": 0,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
           "message": {
             "text": "detected 'git' source not explicitly allowed"
           },
@@ -23,6 +52,7 @@ expression: s
           "level": "warning",
           "locations": [
             {
+              "logicalLocations": [],
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://sarif::sarif_sources.toml"
@@ -30,8 +60,12 @@ expression: s
                 "region": {
                   "byteLength": 9,
                   "byteOffset": 134,
-                  "message": "no crate source fell under this organization",
-                  "snippet": "bizzlepop",
+                  "message": {
+                    "text": "no crate source fell under this organization"
+                  },
+                  "snippet": {
+                    "text": "bizzlepop"
+                  },
                   "startLine": 5
                 }
               }
