@@ -63,6 +63,9 @@ impl<'a> SarifCollector<'a> {
                 Some(DiagnosticCode::License(_)) => {
                     self.process_license(diag, files);
                 }
+                Some(DiagnosticCode::Bans(code)) => {
+                    self.process_ban(diag, files, code);
+                }
                 Some(_) => {
                     self.process_other(diag, files);
                 }
@@ -526,6 +529,88 @@ impl<'a> SarifCollector<'a> {
                 }
             }
         }
+
+        let message = if md.is_empty() {
+            Message::text(diag.diag.message)
+        } else {
+            Message {
+                text: diag.diag.message,
+                markdown: Some(md),
+            }
+        };
+
+        // Add to diagnostics
+        self.diagnostics.push(DiagnosticData {
+            code,
+            krates: diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect(),
+            severity: diag.diag.severity,
+            message,
+            locations,
+            extra: diag.extra,
+        });
+
+        // Add to rules if not already present
+        self.rules.entry(code).or_insert(RuleData {
+            code,
+            severity: diag.diag.severity,
+            description: code.description(),
+        });
+    }
+
+    fn process_ban(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files, code: crate::bans::Code) {
+        match code {
+            crate::bans::Code::Duplicate => {
+                self.process_ban_duplicate(diag, files);
+            }
+            _ => {
+                // For now, delegate to process_other
+                self.process_other(diag, files);
+            }
+        }
+    }
+
+    fn process_ban_duplicate(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {
+        let code = diag.code.expect("code should be Some for duplicate diagnostics");
+
+        let max_feature_depth = if diag.with_features {
+            self.feature_depth.map(|d| d as usize).unwrap_or(1)
+        } else {
+            0
+        };
+
+        // Build graphs for all graph nodes and collect root paths
+        let mut all_paths = Vec::new();
+        let mut md = String::new();
+        
+        // Add the diagnostic message
+        if !diag.diag.message.is_empty() {
+            md.push_str(&diag.diag.message);
+        }
+
+        // Create graphs for each graph node and add to markdown
+        if let Some(grapher) = &self.grapher {
+            for (i, graph_node) in diag.graph_nodes.iter().enumerate() {
+                if let Ok(graph) = grapher.build_graph(graph_node, max_feature_depth) {
+                    // Collect root paths for location finding
+                    all_paths.extend(graph.collect_root_paths());
+
+                    // Add graph to markdown
+                    if !md.is_empty() {
+                        md.push_str("\n\n");
+                    }
+                    md.push_str(&format!("## Dependency Graph {}\n\n", i + 1));
+                    md.push_str("```\n");
+                    md.push_str(&diag::write_compact_graph_as_text(&graph));
+                    md.push_str("\n```\n");
+                }
+            }
+        }
+
+        // Filter paths to only include roots that are workspace crates
+        all_paths.retain(|path| path.is_workspace_member);
+
+        // Find root locations using the filtered paths
+        let locations = self.find_root_locations(&all_paths, files);
 
         let message = if md.is_empty() {
             Message::text(diag.diag.message)
