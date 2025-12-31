@@ -413,6 +413,8 @@ pub struct DependencyPath {
     /// The first crate is a direct dependency of root, each subsequent crate
     /// is a direct dependency of the previous one.
     pub crates: Vec<(String, semver::Version, Kid)>,
+    /// Whether the root crate is a workspace member
+    pub is_workspace_member: bool,
 }
 
 impl GraphNode {
@@ -450,6 +452,7 @@ impl GraphNode {
                 root: (current_name, current_version),
                 root_kid: current_kid,
                 crates: current_path.iter().cloned().collect(),
+                is_workspace_member,
             });
         } else {
             // Extract current crate info once before the loop
