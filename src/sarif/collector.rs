@@ -269,9 +269,8 @@ impl<'a> SarifCollector<'a> {
             .collect()
     }
 
-    /// Finds root workspace crates that depend on the vulnerable crate(s) by processing
+    /// Finds root crates that depend on the vulnerable crate(s) by processing
     /// dependency paths collected from reverse dependency graphs.
-    /// Assumes root crates are workspace members (which always have manifests).
     fn find_root_locations(
         &self,
         paths: &[diag::DependencyPath],
@@ -323,7 +322,7 @@ impl<'a> SarifCollector<'a> {
 
     /// Finds the location of a dependency declaration in a root crate's manifest.
     /// If the dependency is workspace-controlled, returns the workspace location.
-    /// Assumes root_kid is a workspace member (which always has a manifest).
+    /// Returns None if the root crate doesn't have a manifest or the dependency isn't found.
     fn find_dependency_location(
         &self,
         root_kid: &Kid,
@@ -572,7 +571,6 @@ impl<'a> SarifCollector<'a> {
         // Create graphs for each graph node and add to markdown
         for (i, graph_node) in diag.graph_nodes.iter().enumerate() {
             if let Ok(graph) = self.grapher.build_graph(graph_node, max_feature_depth) {
-                // Collect root paths for location finding
                 all_paths.extend(graph.collect_root_paths());
 
                 // Add graph to markdown
@@ -586,10 +584,6 @@ impl<'a> SarifCollector<'a> {
             }
         }
 
-        // Filter paths to only include roots that are workspace crates
-        all_paths.retain(|path| path.is_workspace_member);
-
-        // Find root locations using the filtered paths
         let locations = self.find_root_locations(&all_paths, files);
 
         let message = Message::with_markdown(diag.diag.message, Some(md));

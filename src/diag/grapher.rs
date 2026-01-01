@@ -24,7 +24,7 @@ pub enum NodeInner {
         #[serde(skip)]
         id: Kid,
         #[serde(skip)]
-        is_workspace_member: bool,
+        is_project_crate: bool,
     },
     Feature {
         crate_name: String,
@@ -51,6 +51,16 @@ pub struct InclusionGrapher<'a> {
 impl<'a> InclusionGrapher<'a> {
     pub fn new(krates: &'a Krates) -> Self {
         Self { krates }
+    }
+
+    /// Check if this crate is a project crate, single project roots are added to workspace members
+    fn is_project_crate(&self, kid: &Kid) -> bool {
+        self.krates.workspace_members().any(|wm| {
+            let krates::Node::Krate { id, .. } = wm else {
+                return false;
+            };
+            id == kid
+        })
     }
 
     /// Creates an inclusion graph rooted at the specified node.
@@ -85,20 +95,12 @@ impl<'a> InclusionGrapher<'a> {
             })?;
 
             let inner = if let Node::Krate { krate, .. } = root_krate {
-                // Check if this crate is a workspace member
-                let is_workspace_member = self.krates.workspace_members().any(|wm| {
-                    let krates::Node::Krate { id, .. } = wm else {
-                        return false;
-                    };
-                    id == &krate.id
-                });
-
                 NodeInner::Krate {
                     name: krate.name.clone(),
                     version: krate.version.clone(),
                     kind: None,
                     id: krate.id.clone(),
-                    is_workspace_member,
+                    is_project_crate: self.is_project_crate(&krate.id),
                 }
             } else {
                 anyhow::bail!("unable to find crate node for {}", id.kid);
@@ -126,20 +128,12 @@ impl<'a> InclusionGrapher<'a> {
                     Edge::Feature => None,
                 });
 
-                // Check if this crate is a workspace member
-                let is_workspace_member = self.krates.workspace_members().any(|wm| {
-                    let krates::Node::Krate { id, .. } = wm else {
-                        return false;
-                    };
-                    id == &krate.id
-                });
-
                 NodeInner::Krate {
                     name: krate.name.clone(),
                     version: krate.version.clone(),
                     kind,
                     id: krate.id.clone(),
-                    is_workspace_member,
+                    is_project_crate: self.is_project_crate(&krate.id),
                 }
             }
             Node::Feature { name, krate_index } => {
@@ -332,7 +326,7 @@ pub fn write_compact_graph_as_text(root: &GraphNode) -> String {
     write_graph_as_text_internal(root, true)
 }
 
-fn write_graph_as_text_internal(root: &GraphNode, stop_at_workspace_member: bool) -> String {
+fn write_graph_as_text_internal(root: &GraphNode, stop_at_project_crate: bool) -> String {
     use std::fmt::Write;
 
     const DWN: char = '│';
@@ -347,7 +341,7 @@ fn write_graph_as_text_internal(root: &GraphNode, stop_at_workspace_member: bool
         node: &GraphNode,
         out: &mut String,
         levels_continue: &mut smallvec::SmallVec<[bool; 10]>,
-        stop_at_workspace_member: bool,
+        stop_at_project_crate: bool,
     ) {
         let star = if !node.repeat { "" } else { " (*)" };
 
@@ -366,7 +360,7 @@ fn write_graph_as_text_internal(root: &GraphNode, stop_at_workspace_member: bool
                 name,
                 version,
                 kind,
-                is_workspace_member,
+                is_project_crate,
                 ..
             } => {
                 if let Some(kind) = kind {
@@ -376,7 +370,7 @@ fn write_graph_as_text_internal(root: &GraphNode, stop_at_workspace_member: bool
                 writeln!(out, "{name} v{version}{star}").unwrap();
 
                 // Stop traversing if this is a workspace member and compact mode is enabled
-                if stop_at_workspace_member && *is_workspace_member {
+                if stop_at_project_crate && *is_project_crate {
                     return;
                 }
             }
@@ -393,33 +387,24 @@ fn write_graph_as_text_internal(root: &GraphNode, stop_at_workspace_member: bool
 
         for (i, parent) in node.parents.iter().enumerate() {
             levels_continue.push(i < cont);
-            write(parent, out, levels_continue, stop_at_workspace_member);
+            write(parent, out, levels_continue, stop_at_project_crate);
             levels_continue.pop();
         }
     }
 
-    write(root, &mut out, &mut levels, stop_at_workspace_member);
+    write(root, &mut out, &mut levels, stop_at_project_crate);
     out
 }
 
-/// Represents a path from a root crate down to the vulnerable crate
 #[derive(Debug, Clone)]
 pub struct DependencyPath {
-    /// The root crate (name, version)
     pub root: (String, semver::Version),
-    /// The root crate's kid identifier
     pub root_kid: Kid,
-    /// The path of crates from root to vulnerable (excluding root).
-    /// The first crate is a direct dependency of root, each subsequent crate
-    /// is a direct dependency of the previous one.
     pub crates: Vec<(String, semver::Version, Kid)>,
-    /// Whether the root crate is a workspace member
-    pub is_workspace_member: bool,
+    pub is_project_crate: bool,
 }
 
 impl GraphNode {
-    /// Collects all paths from root crates down to this node (the vulnerable crate).
-    /// Returns paths with crates that can be checked for workspace dependencies.
     pub fn collect_root_paths(&self) -> Vec<DependencyPath> {
         let mut paths = Vec::new();
         let mut current_path = VecDeque::new();
@@ -432,48 +417,37 @@ impl GraphNode {
         paths: &mut Vec<DependencyPath>,
         current_path: &mut VecDeque<(String, semver::Version, Kid)>,
     ) {
-        // Get current node info
-        let (current_name, current_version, current_kid, is_workspace_member) = 
-            if let NodeInner::Krate { name, version, id, is_workspace_member, .. } = &self.inner {
-                (name.clone(), version.clone(), id.clone(), *is_workspace_member)
-            } else {
-                // Skip feature nodes, continue to parents
-                for parent in &self.parents {
-                    parent.collect_root_paths_internal(paths, current_path);
+        let (current_name, current_version, current_kid, is_project_crate) = 
+            match &self.inner {
+                NodeInner::Krate { name, version, id, is_project_crate, .. } => {
+                    (name.clone(), version.clone(), id.clone(), *is_project_crate)
                 }
-                return;
+                NodeInner::Feature { .. } => {
+                    for parent in &self.parents {
+                        parent.collect_root_paths_internal(paths, current_path);
+                    }
+                    return;
+                }
             };
 
-        // Stop at workspace members or leaf nodes (no parents) - this is the root
-        if is_workspace_member || self.parents.is_empty() {
-            // We've reached a workspace member or a root crate
-            // The path is already in the correct order (root -> vulnerable) since we pushed to front
+        if is_project_crate {
             paths.push(DependencyPath {
                 root: (current_name, current_version),
                 root_kid: current_kid,
                 crates: current_path.iter().cloned().collect(),
-                is_workspace_member,
+                is_project_crate,
             });
         } else {
-            // Extract current crate info once before the loop
             let current_crate = (current_name.clone(), current_version.clone(), current_kid.clone());
-            
-            // Continue traversing up to parents
+
             for parent in &self.parents {
                 match &parent.inner {
                     NodeInner::Krate { .. } => {
-                        // Push to front to build path in correct order (root -> vulnerable)
-                        // as we traverse up, we push each crate to the front
                         current_path.push_front(current_crate.clone());
-                        
-                        // Recurse to parent (going up the tree)
                         parent.collect_root_paths_internal(paths, current_path);
-                        
-                        // Remove crate when backtracking
                         current_path.pop_front();
                     }
                     NodeInner::Feature { .. } => {
-                        // Feature nodes don't create path entries, just recurse
                         parent.collect_root_paths_internal(paths, current_path);
                     }
                 }
