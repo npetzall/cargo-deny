@@ -14,9 +14,9 @@ use std::fmt::Write as _;
 pub struct SarifCollector<'a> {
     diagnostics: Vec<DiagnosticData>,
     rules: BTreeMap<DiagnosticCode, RuleData>,
-    grapher: Option<diag::InclusionGrapher<'a>>,
-    feature_depth: Option<u32>,
-    krate_spans: Option<&'a diag::KrateSpans<'a>>,
+    grapher: diag::InclusionGrapher<'a>,
+    feature_depth: u32,
+    krate_spans: &'a diag::KrateSpans<'a>,
 }
 
 struct DiagnosticData {
@@ -36,18 +36,37 @@ struct RuleData {
 
 impl<'a> SarifCollector<'a> {
     pub fn new(
-        krates: Option<&'a crate::Krates>,
+        krates: &'a crate::Krates,
         feature_depth: Option<u32>,
-        krate_spans: Option<&'a diag::KrateSpans<'a>>,
+        krate_spans: &'a diag::KrateSpans<'a>,
     ) -> Self {
         Self {
             diagnostics: Vec::new(),
             rules: BTreeMap::new(),
-            grapher: krates.map(diag::InclusionGrapher::new),
-            feature_depth,
+            grapher: diag::InclusionGrapher::new(krates),
+            feature_depth: feature_depth.unwrap_or(1),
             krate_spans,
         }
     }
+
+    /// Calculates the maximum feature depth based on whether features are enabled
+    fn max_feature_depth(&self, with_features: bool) -> usize {
+        if with_features {
+            self.feature_depth as usize
+        } else {
+            0
+        }
+    }
+
+    /// Ensures a rule is registered for the given diagnostic code
+    fn ensure_rule(&mut self, code: DiagnosticCode, severity: Severity) {
+        self.rules.entry(code).or_insert_with(|| RuleData {
+            code,
+            severity,
+            description: code.description(),
+        });
+    }
+
     pub fn add_diagnostics(&mut self, pack: Pack, files: &crate::diag::Files) {
         for diag in pack {
             // Filter out note and help severities - SARIF should only contain actionable issues
@@ -55,44 +74,57 @@ impl<'a> SarifCollector<'a> {
                 continue;
             }
 
-            match diag.code {
+            let diagnostics = match diag.code {
                 None => continue,
                 Some(DiagnosticCode::Advisory(_)) => {
-                    self.process_advisory(diag, files);
+                    self.process_advisory(diag, files)
                 }
                 Some(DiagnosticCode::License(_)) => {
-                    self.process_license(diag, files);
+                    self.process_license(diag, files)
                 }
                 Some(DiagnosticCode::Bans(code)) => {
-                    self.process_ban(diag, files, code);
+                    self.process_ban(diag, files, code)
                 }
                 Some(_) => {
-                    self.process_other(diag, files);
+                    self.process_other(diag, files)
                 }
+            };
+
+            // Only add rules if diagnostics were produced
+            if !diagnostics.is_empty() {
+                // Extract unique codes for rule registration
+                let mut seen_codes = HashSet::new();
+                for diag_data in &diagnostics {
+                    // Use qualified_str() as a hashable key since DiagnosticCode doesn't implement Hash
+                    let code_key = diag_data.code.qualified_str();
+                    if seen_codes.insert(code_key) {
+                        self.ensure_rule(diag_data.code, diag_data.severity);
+                    }
+                }
+
+                self.diagnostics.extend(diagnostics);
             }
         }
     }
 
-    fn process_advisory(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {
+    fn process_advisory(&self, diag: crate::diag::Diag, files: &crate::diag::Files) -> Vec<DiagnosticData> {
         let code = diag.code.expect("code should be Some for Advisory");
 
-        // Advisories point to Cargo.lock which is filtered out, so find root locations
-        // using the dependency graph. If grapher is not available, locations will be empty.
-        let locations = if let Some(grapher) = &self.grapher {
-            let max_feature_depth = if diag.with_features {
-                self.feature_depth.map(|d| d as usize).unwrap_or(1)
-            } else {
-                0
-            };
+        // Build graphs once for all graph nodes - reuse for both locations and markdown
+        let max_feature_depth = self.max_feature_depth(diag.with_features);
+        let mut graphs = Vec::new();
+        let mut all_paths = Vec::new();
 
-            // Build graphs for all graph nodes and collect root paths
-            let mut all_paths = Vec::new();
-            for graph_node in &diag.graph_nodes {
-                if let Ok(graph) = grapher.build_graph(graph_node, max_feature_depth) {
-                    all_paths.extend(graph.collect_root_paths());
-                }
+        for graph_node in &diag.graph_nodes {
+            if let Ok(graph) = self.grapher.build_graph(graph_node, max_feature_depth) {
+                all_paths.extend(graph.collect_root_paths());
+                graphs.push(graph);
             }
+        }
 
+        // Advisories point to Cargo.lock which is filtered out, so find root locations
+        // using the dependency graph.
+        let locations = if !all_paths.is_empty() {
             self.find_root_locations(&all_paths, files)
         } else {
             Vec::new()
@@ -177,33 +209,20 @@ impl<'a> SarifCollector<'a> {
                     }
                 }
 
-                // Append dependency graph if available
-                if let Some(grapher) = &self.grapher {
-                    if let Some(first_graph_node) = diag.graph_nodes.first() {
-                        let max_feature_depth = if diag.with_features {
-                            self.feature_depth.map(|d| d as usize).unwrap_or(1)
-                        } else {
-                            0
-                        };
-
-                        if let Ok(graph) = grapher.build_graph(first_graph_node, max_feature_depth) {
-                            md.push_str("## Dependency Graph\n\n");
-                            md.push_str("```\n");
-                            md.push_str(&diag::write_compact_graph_as_text(&graph));
-                            md.push_str("\n```\n");
-                        }
-                    }
+                // Append dependency graph using the first graph we already built
+                if let Some(first_graph) = graphs.first() {
+                    md.push_str("## Dependency Graph\n\n");
+                    md.push_str("```\n");
+                    md.push_str(&diag::write_compact_graph_as_text(first_graph));
+                    md.push_str("\n```\n");
                 }
 
-                Message {
-                    text: meta.title.clone(),
-                    markdown: Some(md),
-                }
+                Message::with_markdown(meta.title.clone(), Some(md))
             }
             _ => Message::text(diag.diag.message),
         };
 
-        // Add to diagnostics - create one diagnostic per location for advisories
+        // Create one diagnostic per location for advisories
         // (GitHub only uses the first location, so each location needs its own result)
         let krates: smallvec::SmallVec<[Kid; 2]> = diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
         
@@ -234,8 +253,9 @@ impl<'a> SarifCollector<'a> {
         };
         
         // Create one diagnostic per location
-        for location in final_locations {
-            self.diagnostics.push(DiagnosticData {
+        final_locations
+            .into_iter()
+            .map(|location| DiagnosticData {
                 code,
                 krates: krates.clone(),
                 severity: diag.diag.severity,
@@ -245,15 +265,8 @@ impl<'a> SarifCollector<'a> {
                 },
                 locations: vec![location],
                 extra: diag.extra.clone(),
-            });
-        }
-
-        // Add to rules if not already present
-        self.rules.entry(code).or_insert(RuleData {
-            code,
-            severity: diag.diag.severity,
-            description: code.description(),
-        });
+            })
+            .collect()
     }
 
     /// Finds root workspace crates that depend on the vulnerable crate(s) by processing
@@ -264,10 +277,6 @@ impl<'a> SarifCollector<'a> {
         paths: &[diag::DependencyPath],
         files: &crate::diag::Files,
     ) -> Vec<Location> {
-        let Some(krate_spans) = self.krate_spans else {
-            return Vec::new();
-        };
-
         let mut locations = Vec::new();
         let mut seen_locations: HashSet<(String, usize, usize)> = HashSet::new();
 
@@ -282,7 +291,7 @@ impl<'a> SarifCollector<'a> {
                 &path.root_kid,
                 dep_name,
                 dep_version,
-                krate_spans,
+                self.krate_spans,
                 files,
             ) else {
                 continue;
@@ -405,7 +414,7 @@ impl<'a> SarifCollector<'a> {
         }
     }
 
-    fn process_license(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {
+    fn process_license(&self, diag: crate::diag::Diag, files: &crate::diag::Files) -> Vec<DiagnosticData> {
         use codespan_reporting::diagnostic::LabelStyle;
 
         let code = diag.code.expect("code should be Some for license diagnostics");
@@ -424,7 +433,7 @@ impl<'a> SarifCollector<'a> {
         // Use only the first primary label for location (or first label if no primary)
         let location_label = primary_labels
             .first()
-            .map(|label| *label)
+            .copied()
             .or_else(|| diag.diag.labels.first())
             .and_then(|label| files.sarif_location(label).ok());
 
@@ -434,12 +443,10 @@ impl<'a> SarifCollector<'a> {
         // (similar to how advisories handle missing locations)
         if locations.is_empty() {
             if let Some(first_node) = diag.graph_nodes.first() {
-                if let Some(grapher) = &self.grapher {
-                    // Find the krate in krates collection
-                    if let Some(krate) = grapher.krates.krates().find(|k| k.id == first_node.kid) {
-                        // Create location from krate (uses source for registry crates, manifest_path for local)
-                        locations.push(Self::create_location_from_krate(krate));
-                    }
+                // Find the krate in krates collection
+                if let Some(krate) = self.grapher.krates.krates().find(|k| k.id == first_node.kid) {
+                    // Create location from krate (uses source for registry crates, manifest_path for local)
+                    locations.push(Self::create_location_from_krate(krate));
                 }
             }
         }
@@ -509,74 +516,49 @@ impl<'a> SarifCollector<'a> {
             md.push_str("\n");
         }
 
-        // Append dependency graph if available
-        if let Some(grapher) = &self.grapher {
-            if let Some(first_graph_node) = diag.graph_nodes.first() {
-                let max_feature_depth = if diag.with_features {
-                    self.feature_depth.map(|d| d as usize).unwrap_or(1)
-                } else {
-                    0
-                };
+        // Append dependency graph
+        if let Some(first_graph_node) = diag.graph_nodes.first() {
+            let max_feature_depth = self.max_feature_depth(diag.with_features);
 
-                if let Ok(graph) = grapher.build_graph(first_graph_node, max_feature_depth) {
-                    if !md.is_empty() {
-                        md.push_str("\n");
-                    }
-                    md.push_str("## Dependency Graph\n\n");
-                    md.push_str("```\n");
-                    md.push_str(&diag::write_compact_graph_as_text(&graph));
-                    md.push_str("\n```\n");
+            if let Ok(graph) = self.grapher.build_graph(first_graph_node, max_feature_depth) {
+                if !md.is_empty() {
+                    md.push_str("\n");
                 }
+                md.push_str("## Dependency Graph\n\n");
+                md.push_str("```\n");
+                md.push_str(&diag::write_compact_graph_as_text(&graph));
+                md.push_str("\n```\n");
             }
         }
 
-        let message = if md.is_empty() {
-            Message::text(diag.diag.message)
-        } else {
-            Message {
-                text: diag.diag.message,
-                markdown: Some(md),
-            }
-        };
+        let message = Message::with_markdown(diag.diag.message, Some(md));
 
-        // Add to diagnostics
-        self.diagnostics.push(DiagnosticData {
+        vec![DiagnosticData {
             code,
             krates: diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect(),
             severity: diag.diag.severity,
             message,
             locations,
             extra: diag.extra,
-        });
-
-        // Add to rules if not already present
-        self.rules.entry(code).or_insert(RuleData {
-            code,
-            severity: diag.diag.severity,
-            description: code.description(),
-        });
+        }]
     }
 
-    fn process_ban(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files, code: crate::bans::Code) {
+    fn process_ban(&self, diag: crate::diag::Diag, files: &crate::diag::Files, code: crate::bans::Code) -> Vec<DiagnosticData> {
         match code {
             crate::bans::Code::Duplicate => {
-                self.process_ban_duplicate(diag, files);
+                self.process_ban_duplicate(diag, files)
             }
             _ => {
                 // For now, delegate to process_other
-                self.process_other(diag, files);
+                self.process_other(diag, files)
             }
         }
     }
 
-    fn process_ban_duplicate(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {
+    fn process_ban_duplicate(&self, diag: crate::diag::Diag, files: &crate::diag::Files) -> Vec<DiagnosticData> {
         let code = diag.code.expect("code should be Some for duplicate diagnostics");
 
-        let max_feature_depth = if diag.with_features {
-            self.feature_depth.map(|d| d as usize).unwrap_or(1)
-        } else {
-            0
-        };
+        let max_feature_depth = self.max_feature_depth(diag.with_features);
 
         // Build graphs for all graph nodes and collect root paths
         let mut all_paths = Vec::new();
@@ -588,21 +570,19 @@ impl<'a> SarifCollector<'a> {
         }
 
         // Create graphs for each graph node and add to markdown
-        if let Some(grapher) = &self.grapher {
-            for (i, graph_node) in diag.graph_nodes.iter().enumerate() {
-                if let Ok(graph) = grapher.build_graph(graph_node, max_feature_depth) {
-                    // Collect root paths for location finding
-                    all_paths.extend(graph.collect_root_paths());
+        for (i, graph_node) in diag.graph_nodes.iter().enumerate() {
+            if let Ok(graph) = self.grapher.build_graph(graph_node, max_feature_depth) {
+                // Collect root paths for location finding
+                all_paths.extend(graph.collect_root_paths());
 
-                    // Add graph to markdown
-                    if !md.is_empty() {
-                        md.push_str("\n\n");
-                    }
-                    md.push_str(&format!("## Dependency Graph {}\n\n", i + 1));
-                    md.push_str("```\n");
-                    md.push_str(&diag::write_compact_graph_as_text(&graph));
-                    md.push_str("\n```\n");
+                // Add graph to markdown
+                if !md.is_empty() {
+                    md.push_str("\n\n");
                 }
+                md.push_str(&format!("## Dependency Graph {}\n\n", i + 1));
+                md.push_str("```\n");
+                md.push_str(&diag::write_compact_graph_as_text(&graph));
+                md.push_str("\n```\n");
             }
         }
 
@@ -612,34 +592,19 @@ impl<'a> SarifCollector<'a> {
         // Find root locations using the filtered paths
         let locations = self.find_root_locations(&all_paths, files);
 
-        let message = if md.is_empty() {
-            Message::text(diag.diag.message)
-        } else {
-            Message {
-                text: diag.diag.message,
-                markdown: Some(md),
-            }
-        };
+        let message = Message::with_markdown(diag.diag.message, Some(md));
 
-        // Add to diagnostics
-        self.diagnostics.push(DiagnosticData {
+        vec![DiagnosticData {
             code,
             krates: diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect(),
             severity: diag.diag.severity,
             message,
             locations,
             extra: diag.extra,
-        });
-
-        // Add to rules if not already present
-        self.rules.entry(code).or_insert(RuleData {
-            code,
-            severity: diag.diag.severity,
-            description: code.description(),
-        });
+        }]
     }
 
-    fn process_other(&mut self, diag: crate::diag::Diag, files: &crate::diag::Files) {
+    fn process_other(&self, diag: crate::diag::Diag, files: &crate::diag::Files) -> Vec<DiagnosticData> {
         let code = diag.code.expect("code should be Some for other diagnostics");
 
         let locations = diag
@@ -649,24 +614,38 @@ impl<'a> SarifCollector<'a> {
             .filter_map(|label| files.sarif_location(label).ok())
             .collect();
 
-        let message = Message::text(diag.diag.message);
+        let mut md = String::new();
 
-        // Add to diagnostics
-        self.diagnostics.push(DiagnosticData {
+        // Add the diagnostic message
+        if !diag.diag.message.is_empty() {
+            md.push_str(&diag.diag.message);
+        }
+
+        // Create graphs for each graph node and add to markdown
+        let max_feature_depth = self.max_feature_depth(diag.with_features);
+        for (i, graph_node) in diag.graph_nodes.iter().enumerate() {
+            if let Ok(graph) = self.grapher.build_graph(graph_node, max_feature_depth) {
+                // Add graph to markdown
+                if !md.is_empty() {
+                    md.push_str("\n\n");
+                }
+                md.push_str(&format!("## Dependency Graph {}\n\n", i + 1));
+                md.push_str("```\n");
+                md.push_str(&diag::write_compact_graph_as_text(&graph));
+                md.push_str("\n```\n");
+            }
+        }
+
+        let message = Message::with_markdown(diag.diag.message, Some(md));
+
+        vec![DiagnosticData {
             code,
             krates: diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect(),
             severity: diag.diag.severity,
             message,
             locations,
             extra: diag.extra,
-        });
-
-        // Add to rules if not already present
-        self.rules.entry(code).or_insert(RuleData {
-            code,
-            severity: diag.diag.severity,
-            description: code.description(),
-        });
+        }]
     }
 
     pub fn generate_sarif(self) -> SarifLog {

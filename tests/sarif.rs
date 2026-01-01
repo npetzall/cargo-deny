@@ -22,9 +22,9 @@ where
         },
         || {
             let mut sarif = cargo_deny::sarif::SarifCollector::new(
-                Some(ctx.krates),
+                &ctx.krates,
                 None,
-                Some(&ctx.spans),
+                &ctx.spans,
             );
 
             let default = if std::env::var_os("CI").is_some() {
