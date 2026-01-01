@@ -26,6 +26,7 @@ expression: s
             }
           ],
           "message": {
+            "markdown": "error parsing SPDX license expression\n\nGPL-2.0\n## Dependency Graph\n\n```\ngnu-licenses v0.1.0\n\n```\n",
             "text": "error parsing SPDX license expression"
           },
           "partialFingerprints": {
@@ -43,19 +44,6 @@ expression: s
                   "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 51,
-                  "byteOffset": 120,
-                  "snippet": "Apache-2.0/GPL-2.0+ AND LGPL-3.0-only or gnu gpl v3",
-                  "startLine": 4
-                }
-              }
-            },
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
-                },
-                "region": {
                   "byteLength": 10,
                   "byteOffset": 120,
                   "message": "rejected: license is not explicitly allowed",
@@ -63,51 +51,10 @@ expression: s
                   "startLine": 4
                 }
               }
-            },
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 7,
-                  "byteOffset": 131,
-                  "message": "accepted: license is explicitly allowed",
-                  "snippet": "GPL-2.0",
-                  "startLine": 4
-                }
-              }
-            },
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 13,
-                  "byteOffset": 144,
-                  "message": "rejected: license is not explicitly allowed",
-                  "snippet": "LGPL-3.0-only",
-                  "startLine": 4
-                }
-              }
-            },
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://{CWD}/examples/04_gnu_licenses/Cargo.toml"
-                },
-                "region": {
-                  "byteLength": 10,
-                  "byteOffset": 161,
-                  "message": "rejected: license is not explicitly allowed",
-                  "snippet": "gnu gpl v3",
-                  "startLine": 4
-                }
-              }
             }
           ],
           "message": {
+            "markdown": "failed to satisfy license requirements\n\nApache-2.0/GPL-2.0+ AND LGPL-3.0-only or gnu gpl v3\n\n**License Details:**\n- Apache-2.0: rejected: license is not explicitly allowed\n- GPL-2.0: accepted: license is explicitly allowed\n- LGPL-3.0-only: rejected: license is not explicitly allowed\n- gnu gpl v3: rejected: license is not explicitly allowed\n\n**License Information:**\n\nApache-2.0 - Apache License 2.0:\n  - OSI approved\n  - FSF Free/Libre\n\nLGPL-3.0-only - GNU Lesser General Public License v3.0 only:\n  - OSI approved\n  - FSF Free/Libre\n  - Copyleft\n\nGPL-3.0-only - GNU General Public License v3.0 only:\n  - OSI approved\n  - FSF Free/Libre\n  - Copyleft\n\n\n## Dependency Graph\n\n```\ngnu-licenses v0.1.0\n\n```\n",
             "text": "failed to satisfy license requirements"
           },
           "partialFingerprints": {

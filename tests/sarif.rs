@@ -93,24 +93,11 @@ where
 fn sarif_advisories() {
     use cargo_deny::advisories;
 
-    let mut cargo = std::process::Command::new("cargo");
-    cargo.args([
-        "fetch",
-        "--manifest-path",
-        "examples/06_advisories/Cargo.toml",
-    ]);
-    assert!(
-        cargo.status().expect("failed to run cargo fetch").success(),
-        "failed to fetch crates"
-    );
-
-    let md: krates::cm::Metadata = serde_json::from_str(
-        &std::fs::read_to_string("tests/test_data/advisories/06_advisories.json").unwrap(),
-    )
-    .unwrap();
+    let mut cmd = krates::Cmd::new();
+    cmd.manifest_path("examples/06_advisories/Cargo.toml");
 
     let krates: Krates = krates::Builder::new()
-        .build_with_metadata(md, krates::NoneFilter)
+        .build(cmd, krates::NoneFilter)
         .unwrap();
 
     let db = {
