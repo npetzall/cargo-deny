@@ -1,0 +1,13 @@
+---
+source: src/diag/grapher.rs
+expression: text_with_features
+---
+bitflags v1.3.2
+└── bitflags feature 'default' 
+    └── git2 v0.15.0
+        └── features v0.1.0
+            ├── features feature 'default' 
+            ├── features feature 'json' 
+            │   └── features feature 'simple' 
+            │       └── features feature 'default'  (*)
+            └── features feature 'simple'  (*)

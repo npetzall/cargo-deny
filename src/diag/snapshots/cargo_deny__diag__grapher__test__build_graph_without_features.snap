@@ -1,0 +1,7 @@
+---
+source: src/diag/grapher.rs
+expression: text_no_features
+---
+bitflags v1.3.2
+└── git2 v0.15.0
+    └── features v0.1.0
