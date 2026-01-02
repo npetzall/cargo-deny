@@ -10,13 +10,15 @@ use crate::{
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
 
+use super::locator::LocationFinder;
+
 /// Collects diagnostics and converts them to SARIF format
-pub struct SarifCollector<'a> {
+pub struct SarifCollector<'a, L: LocationFinder> {
     diagnostics: Vec<DiagnosticData>,
     rules: BTreeMap<DiagnosticCode, RuleData>,
     grapher: diag::InclusionGrapher<'a>,
     feature_depth: u32,
-    krate_spans: &'a diag::KrateSpans<'a>,
+    locator: L,
 }
 
 struct DiagnosticData {
@@ -34,20 +36,23 @@ struct RuleData {
     description: &'static str,
 }
 
-impl<'a> SarifCollector<'a> {
+impl<'a, L: LocationFinder> SarifCollector<'a, L> {
     pub fn new(
         krates: &'a crate::Krates,
         feature_depth: Option<u32>,
-        krate_spans: &'a diag::KrateSpans<'a>,
+        locator: L,
     ) -> Self {
         Self {
             diagnostics: Vec::new(),
             rules: BTreeMap::new(),
             grapher: diag::InclusionGrapher::new(krates),
             feature_depth: feature_depth.unwrap_or(1),
-            krate_spans,
+            locator,
         }
     }
+}
+
+impl<'a, L: LocationFinder> SarifCollector<'a, L> {
 
     /// Calculates the maximum feature depth based on whether features are enabled
     fn max_feature_depth(&self, with_features: bool) -> usize {
@@ -121,14 +126,6 @@ impl<'a> SarifCollector<'a> {
                 graphs.push(graph);
             }
         }
-
-        // Advisories point to Cargo.lock which is filtered out, so find root locations
-        // using the dependency graph.
-        let locations = if !all_paths.is_empty() {
-            self.find_root_locations(&all_paths, files)
-        } else {
-            Vec::new()
-        };
 
         let message = match &diag.extra {
             Some(diag::Extra::Advisory(advisory)) => {
@@ -226,30 +223,43 @@ impl<'a> SarifCollector<'a> {
         // (GitHub only uses the first location, so each location needs its own result)
         let krates: smallvec::SmallVec<[Kid; 2]> = diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect();
         
-        // If no locations found, create a dummy location and update message
-        let (final_locations, final_message) = if locations.is_empty() {
-            let dummy_location = Self::create_dummy_location();
-            let mut updated_message = Message {
-                text: message.text.clone(),
-                markdown: message.markdown.clone(),
+        // Advisories point to Cargo.lock which is filtered out, so find root locations
+        // using the dependency graph. If no locations found, create a dummy location and update message.
+        let (final_locations, final_message) = {
+            let locations: Vec<_> = if !all_paths.is_empty() {
+                self.locator
+                    .find_project_locations(&all_paths)
+                    .into_iter()
+                    .filter_map(|label| files.sarif_location(&label).ok())
+                    .collect()
+            } else {
+                Vec::new()
             };
             
-            // Add note about reporting to cargo-deny
-            if let Some(ref mut md) = updated_message.markdown {
-                md.push_str("\n\n---\n\n");
-                md.push_str("**Note:** Unable to determine the location of this vulnerability in your dependency tree. ");
-                md.push_str("This may indicate an issue with cargo-deny's dependency graph analysis. ");
-                md.push_str("Please report this issue to [cargo-deny](https://github.com/embarkstudios/cargo-deny/issues).");
+            if locations.is_empty() {
+                let dummy_location = self.create_dummy_location();
+                let mut updated_message = Message {
+                    text: message.text.clone(),
+                    markdown: message.markdown.clone(),
+                };
+                
+                // Add note about reporting to cargo-deny
+                if let Some(ref mut md) = updated_message.markdown {
+                    md.push_str("\n\n---\n\n");
+                    md.push_str("**Note:** Unable to determine the location of this vulnerability in your dependency tree. ");
+                    md.push_str("This may indicate an issue with cargo-deny's dependency graph analysis. ");
+                    md.push_str("Please report this issue to [cargo-deny](https://github.com/embarkstudios/cargo-deny/issues).");
+                } else {
+                    updated_message.markdown = Some(format!(
+                        "{}\n\n---\n\n**Note:** Unable to determine the location of this vulnerability in your dependency tree. This may indicate an issue with cargo-deny's dependency graph analysis. Please report this issue to [cargo-deny](https://github.com/embarkstudios/cargo-deny/issues).",
+                        updated_message.text
+                    ));
+                }
+                
+                (vec![dummy_location], updated_message)
             } else {
-                updated_message.markdown = Some(format!(
-                    "{}\n\n---\n\n**Note:** Unable to determine the location of this vulnerability in your dependency tree. This may indicate an issue with cargo-deny's dependency graph analysis. Please report this issue to [cargo-deny](https://github.com/embarkstudios/cargo-deny/issues).",
-                    updated_message.text
-                ));
+                (locations, message)
             }
-            
-            (vec![dummy_location], updated_message)
-        } else {
-            (locations, message)
         };
         
         // Create one diagnostic per location
@@ -269,107 +279,16 @@ impl<'a> SarifCollector<'a> {
             .collect()
     }
 
-    /// Finds root crates that depend on the vulnerable crate(s) by processing
-    /// dependency paths collected from reverse dependency graphs.
-    fn find_root_locations(
-        &self,
-        paths: &[diag::DependencyPath],
-        files: &crate::diag::Files,
-    ) -> Vec<Location> {
-        let mut locations = Vec::new();
-        let mut seen_locations: HashSet<(String, usize, usize)> = HashSet::new();
-
-        for path in paths {
-            // path.crates[0] is the direct dependency of the root crate.
-            // Skip if empty (vulnerable crate is itself a workspace member).
-            let Some((dep_name, dep_version, _)) = path.crates.first() else {
-                continue;
-            };
-
-            let Some(loc) = self.find_dependency_location(
-                &path.root_kid,
-                dep_name,
-                dep_version,
-                self.krate_spans,
-                files,
-            ) else {
-                continue;
-            };
-
-            // Deduplicate by file URI and span
-            let key = self.location_key(&loc);
-            if seen_locations.insert(key) {
-                locations.push(loc);
-            }
-        }
-
-        locations
-    }
-
-    /// Extracts a deduplication key from a location.
-    fn location_key(&self, loc: &Location) -> (String, usize, usize) {
-        (
-            loc.physical_location.artifact_location.uri.clone(),
-            loc.physical_location.region.byte_offset,
-            loc.physical_location.region.byte_length,
-        )
-    }
-
-    /// Calculates a span that covers both key and value spans.
-    fn merge_spans(key_span: &toml_span::Span, value_span: &toml_span::Span) -> crate::Span {
-        (key_span.start.min(value_span.start)..key_span.end.max(value_span.end)).into()
-    }
-
-    /// Finds the location of a dependency declaration in a root crate's manifest.
-    /// If the dependency is workspace-controlled, returns the workspace location.
-    /// Returns None if the root crate doesn't have a manifest or the dependency isn't found.
-    fn find_dependency_location(
-        &self,
-        root_kid: &Kid,
-        dep_name: &str,
-        dep_version: &semver::Version,
-        krate_spans: &diag::KrateSpans<'_>,
-        files: &crate::diag::Files,
-    ) -> Option<Location> {
-        use crate::diag::Label;
-
-        let manifest = krate_spans.manifest(root_kid)?;
-        let manifest_dep = manifest.deps(false).find(|mdep| {
-            mdep.krate.name == dep_name && mdep.krate.version == *dep_version
-        })?;
-
-        let manifest_span = Self::merge_spans(&manifest_dep.key_span, &manifest_dep.value_span);
-
-        // If workspace-controlled, prefer workspace location; otherwise use manifest location
-        let (file_id, span) = if manifest_dep.workspace.as_ref().is_some_and(|w| w.value) {
-            // Try workspace location first, fall back to manifest if not available
-            match (
-                krate_spans.workspace_span(&manifest_dep.krate.id),
-                krate_spans.workspace_id,
-            ) {
-                (Some(ws_span), Some(workspace_id)) => {
-                    let workspace_span = Self::merge_spans(&ws_span.key, &ws_span.value);
-                    (workspace_id, workspace_span)
-                }
-                _ => (manifest.id, manifest_span),
-            }
-        } else {
-            (manifest.id, manifest_span)
-        };
-
-        let label = Label::primary(file_id, span);
-        files.sarif_location(&label).ok()
-    }
 
     /// Creates a dummy location for advisories when no actual location can be determined.
     /// This ensures SARIF results always have at least one location.
-    fn create_dummy_location() -> Location {
+    fn create_dummy_location(&self) -> Location {
         use crate::sarif::model::{ArtifactLocation, PhysicalLocation, Region};
         
         Location {
             physical_location: PhysicalLocation {
                 artifact_location: ArtifactLocation {
-                    uri: "Cargo.toml".to_string(),
+                    uri: self.grapher.krates.workspace_root().to_string(),
                 },
                 region: Region {
                     start_line: 1,
@@ -377,37 +296,6 @@ impl<'a> SarifCollector<'a> {
                     byte_length: 0,
                     snippet: None,
                     message: Some("Unable to determine dependency location".to_string()),
-                },
-            },
-        }
-    }
-
-    /// Creates a location from a krate.
-    /// For registry crates, uses the source to make it clear it's not a workspace crate.
-    /// For local crates, uses the actual manifest path.
-    fn create_location_from_krate(krate: &crate::Krate) -> Location {
-        use crate::sarif::model::{ArtifactLocation, PhysicalLocation, Region};
-        
-        let uri = if let Some(source) = &krate.source {
-            // For registry/git crates, use source to indicate it's not a workspace crate
-            // Format: file://{source}#{name}@{version}
-            format!("file://{}#{}@{}", source, krate.name, krate.version)
-        } else {
-            // For local/workspace crates, use the actual manifest path
-            format!("file://{}", krate.manifest_path)
-        };
-        
-        Location {
-            physical_location: PhysicalLocation {
-                artifact_location: ArtifactLocation {
-                    uri,
-                },
-                region: Region {
-                    start_line: 1,
-                    byte_offset: 0,
-                    byte_length: 0,
-                    snippet: None,
-                    message: Some("manifest file".to_string()),
                 },
             },
         }
@@ -542,6 +430,37 @@ impl<'a> SarifCollector<'a> {
         }]
     }
 
+    /// Creates a location from a krate.
+    /// For registry crates, uses the source to make it clear it's not a workspace crate.
+    /// For local crates, uses the actual manifest path.
+    fn create_location_from_krate(krate: &crate::Krate) -> Location {
+        use crate::sarif::model::{ArtifactLocation, PhysicalLocation, Region};
+        
+        let uri = if let Some(source) = &krate.source {
+            // For registry/git crates, use source to indicate it's not a workspace crate
+            // Format: file://{source}#{name}@{version}
+            format!("file://{}#{}@{}", source, krate.name, krate.version)
+        } else {
+            // For local/workspace crates, use the actual manifest path
+            format!("file://{}", krate.manifest_path)
+        };
+        
+        Location {
+            physical_location: PhysicalLocation {
+                artifact_location: ArtifactLocation {
+                    uri,
+                },
+                region: Region {
+                    start_line: 1,
+                    byte_offset: 0,
+                    byte_length: 0,
+                    snippet: None,
+                    message: Some("manifest file".to_string()),
+                },
+            },
+        }
+    }
+
     fn process_ban(&self, diag: crate::diag::Diag, files: &crate::diag::Files, code: crate::bans::Code) -> Vec<DiagnosticData> {
         match code {
             crate::bans::Code::Duplicate => {
@@ -584,7 +503,11 @@ impl<'a> SarifCollector<'a> {
             }
         }
 
-        let locations = self.find_root_locations(&all_paths, files);
+        let locations: Vec<_> = self.locator
+            .find_project_locations(&all_paths)
+            .into_iter()
+            .filter_map(|label| files.sarif_location(&label).ok())
+            .collect();
 
         let message = Message::with_markdown(diag.diag.message, Some(md));
 

@@ -553,7 +553,8 @@ fn print_sarif(
     feature_depth: Option<u32>,
     krate_spans: &cargo_deny::diag::KrateSpans<'_>,
 ) {
-    let mut sc = cargo_deny::sarif::SarifCollector::new(krates, feature_depth, krate_spans);
+    let locator = cargo_deny::sarif::Locator::new(krate_spans);
+    let mut sc = cargo_deny::sarif::SarifCollector::new(krates, feature_depth, locator);
 
     for pack in rx {
         sc.add_diagnostics(pack, files);

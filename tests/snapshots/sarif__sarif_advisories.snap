@@ -240,10 +240,10 @@ expression: s
                   "uri": "file://{CWD}/examples/06_advisories/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 24,
-                  "byteOffset": 1203,
-                  "snippet": "lettre = \"0.10.0-alpha.3",
-                  "startLine": 32
+                  "byteLength": 36,
+                  "byteOffset": 580,
+                  "snippet": "trust-dns-resolver = \"0.20.0-alpha.3",
+                  "startLine": 15
                 }
               }
             }
@@ -268,10 +268,10 @@ expression: s
                   "uri": "file://{CWD}/examples/06_advisories/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 36,
-                  "byteOffset": 580,
-                  "snippet": "trust-dns-resolver = \"0.20.0-alpha.3",
-                  "startLine": 15
+                  "byteLength": 24,
+                  "byteOffset": 1203,
+                  "snippet": "lettre = \"0.10.0-alpha.3",
+                  "startLine": 32
                 }
               }
             }
@@ -324,10 +324,10 @@ expression: s
                   "uri": "file://{CWD}/examples/06_advisories/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 24,
-                  "byteOffset": 1203,
-                  "snippet": "lettre = \"0.10.0-alpha.3",
-                  "startLine": 32
+                  "byteLength": 36,
+                  "byteOffset": 580,
+                  "snippet": "trust-dns-resolver = \"0.20.0-alpha.3",
+                  "startLine": 15
                 }
               }
             }
@@ -352,10 +352,10 @@ expression: s
                   "uri": "file://{CWD}/examples/06_advisories/Cargo.toml"
                 },
                 "region": {
-                  "byteLength": 36,
-                  "byteOffset": 580,
-                  "snippet": "trust-dns-resolver = \"0.20.0-alpha.3",
-                  "startLine": 15
+                  "byteLength": 24,
+                  "byteOffset": 1203,
+                  "snippet": "lettre = \"0.10.0-alpha.3",
+                  "startLine": 32
                 }
               }
             }

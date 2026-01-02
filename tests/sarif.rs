@@ -21,10 +21,11 @@ where
             runner(cctx, tx);
         },
         || {
+            let locator = cargo_deny::sarif::Locator::new(&ctx.spans);
             let mut sarif = cargo_deny::sarif::SarifCollector::new(
                 &ctx.krates,
                 None,
-                &ctx.spans,
+                locator,
             );
 
             let default = if std::env::var_os("CI").is_some() {
