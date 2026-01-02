@@ -1,0 +1,13 @@
+---
+source: src/diag/grapher.rs
+expression: normal_text
+---
+camino v1.1.7
+└── cargo_metadata v0.18.1
+    └── krates v0.16.6
+        └── wildcards-test-allow-git v0.1.0
+            ├── member-one v0.1.0
+            │   ├── (build) member-two v0.1.0
+            │   │   └── root v0.1.0
+            │   └── root v0.1.0 (*)
+            └── (build) member-two v0.1.0 (*)
