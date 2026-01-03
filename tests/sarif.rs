@@ -21,12 +21,14 @@ where
             runner(cctx, tx);
         },
         || {
+            let grapher = cargo_deny::diag::InclusionGrapher::new(ctx.krates);
             let locator = cargo_deny::sarif::Locator::new(&ctx.spans);
-            let mut sarif = cargo_deny::sarif::SarifCollector::new(
-                &ctx.krates,
-                None,
-                locator,
+            let processors = cargo_deny::sarif::ProcessorSet::new(
+                &grapher,
+                &locator,
+                1, // feature_depth
             );
+            let mut sarif = cargo_deny::sarif::SarifCollector::new(processors);
 
             let default = if std::env::var_os("CI").is_some() {
                 60
