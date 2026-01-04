@@ -350,18 +350,28 @@ pub(crate) fn cmd(
     rayon::scope(|s| {
         // Asynchronously displays messages sent from the checks
         s.spawn(|_| {
-            print_diagnostics(
-                rx,
-                log_ctx,
-                if show_inclusion_graphs {
-                    Some(krates)
-                } else {
-                    None
-                },
-                files,
-                &mut stats,
-                feature_depth,
-            );
+            if log_ctx.format == crate::Format::Sarif {
+                print_sarif(
+                    rx,
+                    krates,
+                    files,
+                    feature_depth,
+                    &krate_spans,
+                );
+            } else {
+                print_diagnostics(
+                    rx,
+                    log_ctx,
+                    if show_inclusion_graphs {
+                        Some(krates)
+                    } else {
+                        None
+                    },
+                    files,
+                    &mut stats,
+                    feature_depth,
+                );
+            }
         });
 
         if let Some(summary) = license_summary {
@@ -537,6 +547,40 @@ pub(crate) fn cmd(
 }
 
 #[allow(clippy::too_many_arguments)]
+fn print_sarif(
+    rx: crossbeam::channel::Receiver<cargo_deny::diag::Pack>,
+    krates: &cargo_deny::Krates,
+    files: &Files,
+    feature_depth: Option<u32>,
+    krate_spans: &cargo_deny::diag::KrateSpans<'_>,
+) {
+
+    let grapher = cargo_deny::diag::InclusionGrapher::new(krates);
+    let locator = cargo_deny::sarif::Locator::new(krate_spans);
+    let processors = cargo_deny::sarif::ProcessorSet::new(
+        &grapher,
+        &locator,
+        feature_depth.unwrap_or(1),
+    );
+    let mut sc = cargo_deny::sarif::SarifCollector::new(processors);
+
+    for pack in rx {
+        sc.add_diagnostics(pack, files);
+    }
+
+    let sarif = sc.generate_sarif();
+    let json = serde_json::to_string_pretty(&sarif).unwrap();
+    // Output to stdout for SARIF format
+    use std::io::Write;
+    {
+        let mut lock = std::io::stdout();
+        let _ = lock.write_all(json.as_bytes());
+        let _ = lock.write_all(b"\n");
+    }
+
+}
+
+#[allow(clippy::too_many_arguments)]
 fn print_diagnostics(
     rx: crossbeam::channel::Receiver<cargo_deny::diag::Pack>,
     log_ctx: crate::common::LogContext,
@@ -547,45 +591,27 @@ fn print_diagnostics(
 ) {
     use cargo_deny::diag::Check;
 
-    if log_ctx.format == crate::Format::Sarif {
-        let mut sc = cargo_deny::sarif::SarifCollector::default();
+    let dp = crate::common::DiagPrinter::new(log_ctx, krates, feature_depth);
+    for pack in rx {
+        let check_stats = match pack.check {
+            Check::Advisories => stats.advisories.as_mut().unwrap(),
+            Check::Bans => stats.bans.as_mut().unwrap(),
+            Check::Licenses => stats.licenses.as_mut().unwrap(),
+            Check::Sources => stats.sources.as_mut().unwrap(),
+        };
 
-        for pack in rx {
-            sc.add_diagnostics(pack, files);
-        }
-
-        let sarif = sc.generate_sarif();
-        let json = serde_json::to_string_pretty(&sarif).unwrap();
-        // Output to stdout for SARIF format
-        use std::io::Write;
-        {
-            let mut lock = std::io::stdout();
-            let _ = lock.write_all(json.as_bytes());
-            let _ = lock.write_all(b"\n");
-        }
-    } else {
-        let dp = crate::common::DiagPrinter::new(log_ctx, krates, feature_depth);
-        for pack in rx {
-            let check_stats = match pack.check {
-                Check::Advisories => stats.advisories.as_mut().unwrap(),
-                Check::Bans => stats.bans.as_mut().unwrap(),
-                Check::Licenses => stats.licenses.as_mut().unwrap(),
-                Check::Sources => stats.sources.as_mut().unwrap(),
-            };
-
-            for diag in pack.iter() {
-                match diag.diag.severity {
-                    Severity::Error => check_stats.errors += 1,
-                    Severity::Warning => check_stats.warnings += 1,
-                    Severity::Note => check_stats.notes += 1,
-                    Severity::Help => check_stats.helps += 1,
-                    Severity::Bug => {}
-                }
-            }
-
-            if let Some(mut lock) = dp.as_ref().map(|dp| dp.lock()) {
-                lock.print_krate_pack(pack, files);
+        for diag in pack.iter() {
+            match diag.diag.severity {
+                Severity::Error => check_stats.errors += 1,
+                Severity::Warning => check_stats.warnings += 1,
+                Severity::Note => check_stats.notes += 1,
+                Severity::Help => check_stats.helps += 1,
+                Severity::Bug => {}
             }
         }
-    };
+
+        if let Some(mut lock) = dp.as_ref().map(|dp| dp.lock()) {
+            lock.print_krate_pack(pack, files);
+        }
+    }
 }

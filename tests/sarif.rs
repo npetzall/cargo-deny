@@ -21,7 +21,14 @@ where
             runner(cctx, tx);
         },
         || {
-            let mut sarif = cargo_deny::sarif::SarifCollector::default();
+            let grapher = cargo_deny::diag::InclusionGrapher::new(ctx.krates);
+            let locator = cargo_deny::sarif::Locator::new(&ctx.spans);
+            let processors = cargo_deny::sarif::ProcessorSet::new(
+                &grapher,
+                &locator,
+                1, // feature_depth
+            );
+            let mut sarif = cargo_deny::sarif::SarifCollector::new(processors);
 
             let default = if std::env::var_os("CI").is_some() {
                 60
@@ -89,24 +96,11 @@ where
 fn sarif_advisories() {
     use cargo_deny::advisories;
 
-    let mut cargo = std::process::Command::new("cargo");
-    cargo.args([
-        "fetch",
-        "--manifest-path",
-        "examples/06_advisories/Cargo.toml",
-    ]);
-    assert!(
-        cargo.status().expect("failed to run cargo fetch").success(),
-        "failed to fetch crates"
-    );
-
-    let md: krates::cm::Metadata = serde_json::from_str(
-        &std::fs::read_to_string("tests/test_data/advisories/06_advisories.json").unwrap(),
-    )
-    .unwrap();
+    let mut cmd = krates::Cmd::new();
+    cmd.manifest_path("examples/06_advisories/Cargo.toml");
 
     let krates: Krates = krates::Builder::new()
-        .build_with_metadata(md, krates::NoneFilter)
+        .build(cmd, krates::NoneFilter)
         .unwrap();
 
     let db = {

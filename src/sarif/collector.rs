@@ -1,28 +1,22 @@
 use crate::diag::Extra;
 use crate::sarif::model::{
-    DefaultConfiguration, Driver, Help, Location, Message, Result as SarifResult, Rule,
+    DefaultConfiguration, Driver, Help, Result as SarifResult, Rule,
     RuleProperties, Run, SarifLog, TextContent, Tool,
 };
 use crate::{
-    Kid,
-    diag::{self, DiagnosticCode, Pack, Severity},
+    diag::{DiagnosticCode, Pack, Severity},
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
 
+use crate::sarif::processors::{ProcessorSet, DiagnosticData, DiagnosticProcessor};
+use crate::sarif::locator::LocationFinder;
+
 /// Collects diagnostics and converts them to SARIF format
-pub struct SarifCollector {
+pub struct SarifCollector<'a, L: LocationFinder> {
     diagnostics: Vec<DiagnosticData>,
     rules: BTreeMap<DiagnosticCode, RuleData>,
-}
-
-struct DiagnosticData {
-    code: DiagnosticCode,
-    severity: Severity,
-    krates: smallvec::SmallVec<[Kid; 2]>,
-    message: Message,
-    locations: Vec<Location>,
-    extra: Option<diag::Extra>,
+    processors: ProcessorSet<'a, L>,
 }
 
 struct RuleData {
@@ -31,140 +25,55 @@ struct RuleData {
     description: &'static str,
 }
 
-#[allow(clippy::derivable_impls)]
-impl Default for SarifCollector {
-    fn default() -> Self {
+impl<'a, L: LocationFinder> SarifCollector<'a, L> {
+    pub fn new(processors: ProcessorSet<'a, L>) -> Self {
         Self {
             diagnostics: Vec::new(),
             rules: BTreeMap::new(),
+            processors,
         }
     }
-}
 
-impl SarifCollector {
+    /// Ensures a rule is registered for the given diagnostic code
+    fn ensure_rule(&mut self, code: DiagnosticCode, severity: Severity) {
+        self.rules.entry(code).or_insert_with(|| RuleData {
+            code,
+            severity,
+            description: code.description(),
+        });
+    }
+
     pub fn add_diagnostics(&mut self, pack: Pack, files: &crate::diag::Files) {
         for diag in pack {
-            let Some(code) = diag.code else {
-                return;
-            };
-
             // Filter out note and help severities - SARIF should only contain actionable issues
             if matches!(diag.diag.severity, Severity::Note | Severity::Help) {
-                return;
+                continue;
             }
 
-            let locations = diag
-                .diag
-                .labels
-                .iter()
-                .filter_map(|label| files.sarif_location(label).ok())
-                .collect();
-
-            let message = match &diag.extra {
-                None => Message::text(diag.diag.message),
-                Some(diag::Extra::Advisory(advisory)) => {
-                    let mut md = String::new();
-
-                    let meta = &advisory.metadata;
-
-                    md.push_str("# ");
-                    if let Some(url) = &meta.url {
-                        write!(&mut md, "[{}]({url})", meta.id).unwrap();
-                    } else {
-                        md.push_str(meta.id.as_str());
-                    }
-
-                    md.push('\n');
-                    md.push_str(&meta.title);
-                    md.push('\n');
-
-                    md.push_str("## Description\n");
-                    md.push_str(&meta.description);
-                    md.push_str("\n\n");
-
-                    if !advisory.versions.unaffected().is_empty() {
-                        md.push_str("## Unaffected\n");
-                        for un in advisory.versions.unaffected() {
-                            writeln!(&mut md, "- `{un}`").unwrap();
-                        }
-                        md.push('\n');
-                    }
-
-                    if !advisory.versions.patched().is_empty() {
-                        md.push_str("## Patched\n");
-                        for un in advisory.versions.patched() {
-                            writeln!(&mut md, "- `{un}`").unwrap();
-                        }
-                        md.push('\n');
-                    }
-
-                    if let Some(affected) = &advisory.affected {
-                        md.push_str("## Affected\n");
-                        if !affected.functions.is_empty() {
-                            md.push_str("| Functions | Versions |\n|---|---|\n");
-                            for (path, reqs) in &affected.functions {
-                                write!(&mut md, "|`{path}`|").unwrap();
-
-                                for (i, req) in reqs.iter().enumerate() {
-                                    if i > 0 {
-                                        md.push_str(", ");
-                                    }
-
-                                    write!(&mut md, "`{req}`").unwrap();
-                                }
-
-                                md.push_str("|\n");
-                            }
-
-                            md.push('\n');
-                        }
-
-                        if !affected.arch.is_empty() {
-                            md.push_str("### Arches\n");
-                            for arch in &affected.arch {
-                                md.push_str("- ");
-                                md.push_str(arch.as_str());
-                                md.push('\n');
-                            }
-                            md.push('\n');
-                        }
-
-                        if !affected.os.is_empty() {
-                            md.push_str("### Operating Systems\n");
-                            for os in &affected.os {
-                                md.push_str("- ");
-                                md.push_str(os.as_str());
-                                md.push('\n');
-                            }
-                            md.push('\n');
-                        }
-                    }
-
-                    Message {
-                        text: meta.title.clone(),
-                        markdown: Some(md),
-                    }
-                }
+            let Some(code) = diag.code else {
+                continue;
             };
 
-            // Add to diagnostics
-            self.diagnostics.push(DiagnosticData {
-                code,
-                krates: diag.graph_nodes.iter().map(|gn| gn.kid.clone()).collect(),
-                severity: diag.diag.severity,
-                message,
-                locations,
-                extra: diag.extra,
-            });
+            // Route to appropriate processor
+            let diagnostics = self.processors.get(code).process(diag, files);
 
-            // Add to rules if not already present
-            self.rules.entry(code).or_insert(RuleData {
-                code,
-                severity: diag.diag.severity,
-                description: code.description(),
-            });
+            // Only add rules if diagnostics were produced
+            if !diagnostics.is_empty() {
+                // Extract unique codes for rule registration
+                let mut seen_codes = HashSet::new();
+                for diag_data in &diagnostics {
+                    // Use qualified_str() as a hashable key since DiagnosticCode doesn't implement Hash
+                    let code_key = diag_data.code.qualified_str();
+                    if seen_codes.insert(code_key) {
+                        self.ensure_rule(diag_data.code, diag_data.severity);
+                    }
+                }
+
+                self.diagnostics.extend(diagnostics);
+            }
         }
     }
+
 
     pub fn generate_sarif(self) -> SarifLog {
         // Create rules from collected diagnostics

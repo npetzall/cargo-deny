@@ -142,6 +142,13 @@ impl Message {
             markdown: None,
         }
     }
+
+    pub fn with_markdown(text: String, markdown: Option<String>) -> Self {
+        Self {
+            text,
+            markdown: markdown.filter(|md| !md.is_empty()),
+        }
+    }
 }
 
 #[derive(Serialize)]
