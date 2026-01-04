@@ -30,6 +30,7 @@ expression: s
             }
           ],
           "message": {
+            "markdown": "error parsing SPDX license expression\n\n## Dependency Graph 1\n\n```\ngnu-licenses v0.1.0\n\n```\n",
             "text": "error parsing SPDX license expression"
           },
           "partialFingerprints": {
@@ -130,6 +131,7 @@ expression: s
             }
           ],
           "message": {
+            "markdown": "failed to satisfy license requirements\n\n## Dependency Graph 1\n\n```\ngnu-licenses v0.1.0\n\n```\n",
             "text": "failed to satisfy license requirements"
           },
           "partialFingerprints": {
