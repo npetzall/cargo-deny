@@ -1,9 +1,10 @@
 pub mod advisory;
+pub mod license;
 pub mod other;
 
 use crate::diag::{Diag, Files};
 use crate::sarif::model::Location;
-use crate::Kid;
+use crate::{Kid, Krate};
 use crate::diag::DiagnosticCode;
 use crate::sarif::model::Message;
 use crate::diag::Severity;
@@ -32,12 +33,14 @@ pub struct DiagnosticData {
 /// Enum wrapper for processors
 pub enum Processor<'a, L: LocationFinder> {
     Advisory(advisory::AdvisoryProcessor<'a, L>),
+    License(license::LicenseProcessor<'a, L>),
     Other(other::OtherProcessor<'a, L>),
 }
 
 /// Set of all processors, organized by diagnostic variant
 pub struct ProcessorSet<'a, L: LocationFinder> {
     advisory: Processor<'a, L>,
+    license: Processor<'a, L>,
     other: Processor<'a, L>,
 }
 
@@ -49,6 +52,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for Processor<'a, L> {
     ) -> Vec<DiagnosticData> {
         match self {
             Processor::Advisory(p) => p.process(diag, files),
+            Processor::License(p) => p.process(diag, files),
             Processor::Other(p) => p.process(diag, files),
         }
     }
@@ -62,6 +66,7 @@ impl<'a, L: LocationFinder> ProcessorSet<'a, L> {
     ) -> Self {
         Self {
             advisory: Processor::Advisory(advisory::AdvisoryProcessor::new(grapher, locator, feature_depth)),
+            license: Processor::License(license::LicenseProcessor::new(grapher, locator, feature_depth)),
             other: Processor::Other(other::OtherProcessor::new(grapher, locator, feature_depth)),
         }
     }
@@ -69,12 +74,13 @@ impl<'a, L: LocationFinder> ProcessorSet<'a, L> {
     pub fn get(&self, code: DiagnosticCode) -> &Processor<'a, L> {
         match code {
             DiagnosticCode::Advisory(_) => &self.advisory,
+            DiagnosticCode::License(_) => &self.license,
             _ => &self.other,
         }
     }
 }
 
-/// Shared helper: Creates a dummy location for advisories when no actual location can be determined.
+/// Creates a dummy location for advisories when no actual location can be determined.
 pub(crate) fn create_dummy_location(workspace_root: &str) -> Location {
     use crate::sarif::model::{ArtifactLocation, PhysicalLocation, Region};
     
@@ -89,6 +95,35 @@ pub(crate) fn create_dummy_location(workspace_root: &str) -> Location {
                 byte_length: 0,
                 snippet: None,
                 message: Some(Message::text("Unable to determine dependency location".to_string())),
+            },
+        },
+    }
+}
+
+/// Creates a location from a krate.
+/// For registry crates, uses the source to make it clear it's not a workspace crate.
+/// For local crates, uses the actual manifest path.
+pub(crate) fn create_location_from_krate(krate: &Krate) -> Location {
+    use crate::sarif::model::{ArtifactLocation, PhysicalLocation, Region};
+    
+    let uri = if let Some(source) = &krate.source {
+        // For registry/git crates, use source to indicate it's not a workspace crate
+        // Format: file://{source}#{name}@{version}
+        format!("file://{}#{}@{}", source, krate.name, krate.version)
+    } else {
+        // For local/workspace crates, use the actual manifest path
+        format!("file://{}", krate.manifest_path)
+    };
+    
+    Location {
+        physical_location: PhysicalLocation {
+            artifact_location: ArtifactLocation { uri },
+            region: Region {
+                start_line: 1,
+                byte_offset: 0,
+                byte_length: 0,
+                snippet: None,
+                message: Some(Message::text("manifest file".to_string())),
             },
         },
     }
