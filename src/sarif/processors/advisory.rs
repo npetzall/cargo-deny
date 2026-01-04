@@ -30,6 +30,48 @@ impl<'a, L: LocationFinder> AdvisoryProcessor<'a, L> {
             0
         }
     }
+
+    /// Convert markdown headers (##, ###, ####) to bold text
+    fn convert_headers_to_bold(text: &str) -> String {
+        let mut result = String::with_capacity(text.len());
+        let mut lines = text.lines().peekable();
+        
+        while let Some(line) = lines.next() {
+            let trimmed = line.trim_start();
+            let leading_whitespace = &line[..line.len() - trimmed.len()];
+            
+            if trimmed.starts_with("#### ") {
+                // Convert #### Header to **Header**
+                let header_text = trimmed.strip_prefix("#### ").unwrap_or(trimmed);
+                result.push_str(leading_whitespace);
+                result.push_str("**");
+                result.push_str(header_text.trim_end());
+                result.push_str("**");
+            } else if trimmed.starts_with("### ") {
+                // Convert ### Header to **Header**
+                let header_text = trimmed.strip_prefix("### ").unwrap_or(trimmed);
+                result.push_str(leading_whitespace);
+                result.push_str("**");
+                result.push_str(header_text.trim_end());
+                result.push_str("**");
+            } else if trimmed.starts_with("## ") {
+                // Convert ## Header to **Header**
+                let header_text = trimmed.strip_prefix("## ").unwrap_or(trimmed);
+                result.push_str(leading_whitespace);
+                result.push_str("**");
+                result.push_str(header_text.trim_end());
+                result.push_str("**");
+            } else {
+                result.push_str(line);
+            }
+            
+            if lines.peek().is_some() {
+                result.push('\n');
+            }
+        }
+        
+        result
+    }
 }
 
 impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
@@ -58,7 +100,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
 
                 let meta = &advisory.metadata;
 
-                md.push_str("### ");
+                md.push_str("**");
                 if let Some(url) = &meta.url {
                     write!(&mut md, "[{}]({url})", meta.id).unwrap();
                 } else {
@@ -67,30 +109,31 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
 
                 md.push_str(" - ");
                 md.push_str(&meta.title);
-                md.push_str("  \n\n");
+                md.push_str("**  \n\n");
 
-                md.push_str("#### Description  \n\n");
-                md.push_str(&meta.description);
+                md.push_str("**Description**  \n\n");
+                let processed_description = Self::convert_headers_to_bold(&meta.description);
+                md.push_str(&processed_description);
                 md.push_str("  \n\n");
 
                 if !advisory.versions.unaffected().is_empty() {
-                    md.push_str("### Unaffected\n");
+                    md.push_str("**Unaffected**  \n");
                     for un in advisory.versions.unaffected() {
                         writeln!(&mut md, "- `{un}`").unwrap();
                     }
-                    md.push_str("\n\n");
+                    md.push_str("  \n\n");
                 }
 
                 if !advisory.versions.patched().is_empty() {
-                    md.push_str("#### Patched\n\n");
+                    md.push_str("**Patched**  \n\n");
                     for un in advisory.versions.patched() {
                         writeln!(&mut md, "- `{un}`").unwrap();
                     }
-                    md.push('\n');
+                    md.push_str("  \n");
                 }
 
                 if let Some(affected) = &advisory.affected {
-                    md.push_str("#### Affected\n");
+                    md.push_str("**Affected**  \n");
                     if !affected.functions.is_empty() {
                         md.push_str("| Functions | Versions |\n|---|---|\n");
                         for (path, reqs) in &affected.functions {
@@ -107,33 +150,33 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
                             md.push_str("|\n");
                         }
 
-                        md.push('\n');
+                        md.push_str("  \n");
                     }
 
                     if !affected.arch.is_empty() {
-                        md.push_str("#### Arches\n");
+                        md.push_str("**Arches**  \n");
                         for arch in &affected.arch {
                             md.push_str("- ");
                             md.push_str(arch.as_str());
-                            md.push('\n');
+                            md.push_str("  \n");
                         }
-                        md.push('\n');
+                        md.push_str("  \n");
                     }
 
                     if !affected.os.is_empty() {
-                        md.push_str("#### Operating Systems\n");
+                        md.push_str("**Operating Systems**  \n");
                         for os in &affected.os {
                             md.push_str("- ");
                             md.push_str(os.as_str());
-                            md.push('\n');
+                            md.push_str("  \n");
                         }
-                        md.push('\n');
+                        md.push_str("  \n");
                     }
                 }
 
                 // Append dependency graph using the first graph we already built
                 if let Some(first_graph) = graphs.first() {
-                    md.push_str("  \n\n#### Dependency Graph  \n\n");
+                    md.push_str("  \n\n**Dependency Graph**  \n\n");
                     md.push_str("```  \n\n");
                     md.push_str(&crate::diag::write_compact_graph_as_text(first_graph));
                     md.push_str("  \n```  \n\n");
@@ -172,13 +215,13 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
                 
                 // Add note about reporting to cargo-deny
                 if let Some(ref mut md) = updated_message.markdown {
-                    md.push_str("\n\n---\n\n");
+                    md.push_str("  \n\n---  \n\n");
                     md.push_str("**Note:** Unable to determine the location of this vulnerability in your dependency tree. ");
                     md.push_str("This may indicate an issue with cargo-deny's dependency graph analysis. ");
                     md.push_str("Please report this issue to [cargo-deny](https://github.com/embarkstudios/cargo-deny/issues).");
                 } else {
                     updated_message.markdown = Some(format!(
-                        "{}\n\n---\n\n**Note:** Unable to determine the location of this vulnerability in your dependency tree. This may indicate an issue with cargo-deny's dependency graph analysis. Please report this issue to [cargo-deny](https://github.com/embarkstudios/cargo-deny/issues).",
+                        "{}  \n\n---  \n\n**Note:** Unable to determine the location of this vulnerability in your dependency tree. This may indicate an issue with cargo-deny's dependency graph analysis. Please report this issue to [cargo-deny](https://github.com/embarkstudios/cargo-deny/issues).",
                         updated_message.text
                     ));
                 }

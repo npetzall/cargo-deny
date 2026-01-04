@@ -97,7 +97,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for LicenseProcessor<'a, L> {
             if !md.is_empty() {
                 md.push_str("\n\n");
             }
-            md.push_str("**License Details:**\n");
+            md.push_str("**License Details:**  \n");
             for label in &primary_labels {
                 // Get snippet for this specific primary label (individual license name)
                 let license_name = files
@@ -118,26 +118,26 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for LicenseProcessor<'a, L> {
                     }
                     md.push_str(&label.message);
                 }
-                md.push_str("\n");
+                md.push_str("  \n");
             }
         }
 
         // Add notes (license information)
         if !diag.diag.notes.is_empty() {
             if !md.is_empty() {
-                md.push_str("\n");
+                md.push_str("  \n");
             }
-            md.push_str("**License Information:**\n");
+            md.push_str("**License Information:**  \n");
             for note in &diag.diag.notes {
                 // Add extra linebreak before notes that end with ":"
                 if note.trim_end().ends_with(':') {
-                    md.push_str("\n");
+                    md.push_str("  \n");
                 }
                 md.push_str(note);
-                md.push_str("\n");
+                md.push_str("  \n");
             }
             // Add extra linebreak at the end of License Information
-            md.push_str("\n");
+            md.push_str("  \n");
         }
 
         // Append dependency graph
@@ -146,12 +146,12 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for LicenseProcessor<'a, L> {
 
             if let Ok(graph) = self.grapher.build_graph(first_graph_node, max_feature_depth) {
                 if !md.is_empty() {
-                    md.push_str("\n");
+                    md.push_str("  \n");
                 }
-                md.push_str("## Dependency Graph\n\n");
-                md.push_str("```\n");
+                md.push_str("**Dependency Graph**  \n\n");
+                md.push_str("```  \n");
                 md.push_str(&crate::diag::write_compact_graph_as_text(&graph));
-                md.push_str("\n```\n");
+                md.push_str("  \n```  \n");
             }
         }
 

@@ -11,7 +11,7 @@ expression: s
           "level": "error",
           "locations": [],
           "message": {
-            "markdown": "detected 'git' source not explicitly allowed\n\n## Dependency Graph 1\n\n```\nanyhow v1.0.68\n└── sources v0.1.0\n\n```\n",
+            "markdown": "detected 'git' source not explicitly allowed\n\n**Dependency Graph 1**  \n\n```  \nanyhow v1.0.68\n└── sources v0.1.0\n  \n```  \n",
             "text": "detected 'git' source not explicitly allowed"
           },
           "partialFingerprints": {

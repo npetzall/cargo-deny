@@ -30,7 +30,7 @@ expression: s
             }
           ],
           "message": {
-            "markdown": "feature 'simple' for crate 'features-galore = 0.1.0' is explicitly denied\n\n## Dependency Graph 1\n\n```\nfeatures-galore v0.1.0\n\n```\n",
+            "markdown": "feature 'simple' for crate 'features-galore = 0.1.0' is explicitly denied\n\n**Dependency Graph 1**  \n\n```  \nfeatures-galore v0.1.0\n  \n```  \n",
             "text": "feature 'simple' for crate 'features-galore = 0.1.0' is explicitly denied"
           },
           "partialFingerprints": {
@@ -62,7 +62,7 @@ expression: s
             }
           ],
           "message": {
-            "markdown": "feature 'default' for crate 'features-galore = 0.1.0' was not explicitly allowed\n\n## Dependency Graph 1\n\n```\nfeatures-galore v0.1.0\n\n```\n",
+            "markdown": "feature 'default' for crate 'features-galore = 0.1.0' was not explicitly allowed\n\n**Dependency Graph 1**  \n\n```  \nfeatures-galore v0.1.0\n  \n```  \n",
             "text": "feature 'default' for crate 'features-galore = 0.1.0' was not explicitly allowed"
           },
           "partialFingerprints": {
@@ -94,7 +94,7 @@ expression: s
             }
           ],
           "message": {
-            "markdown": "feature 'json' for crate 'features-galore = 0.1.0' was not explicitly allowed\n\n## Dependency Graph 1\n\n```\nfeatures-galore v0.1.0\n\n```\n",
+            "markdown": "feature 'json' for crate 'features-galore = 0.1.0' was not explicitly allowed\n\n**Dependency Graph 1**  \n\n```  \nfeatures-galore v0.1.0\n  \n```  \n",
             "text": "feature 'json' for crate 'features-galore = 0.1.0' was not explicitly allowed"
           },
           "partialFingerprints": {
@@ -126,7 +126,7 @@ expression: s
             }
           ],
           "message": {
-            "markdown": "feature 'simple' for crate 'features-galore = 0.1.0' was not explicitly allowed\n\n## Dependency Graph 1\n\n```\nfeatures-galore v0.1.0\n\n```\n",
+            "markdown": "feature 'simple' for crate 'features-galore = 0.1.0' was not explicitly allowed\n\n**Dependency Graph 1**  \n\n```  \nfeatures-galore v0.1.0\n  \n```  \n",
             "text": "feature 'simple' for crate 'features-galore = 0.1.0' was not explicitly allowed"
           },
           "partialFingerprints": {
@@ -158,7 +158,7 @@ expression: s
             }
           ],
           "message": {
-            "markdown": "feature 'zlib' for crate 'features-galore = 0.1.0' was not explicitly allowed\n\n## Dependency Graph 1\n\n```\nfeatures-galore v0.1.0\n\n```\n",
+            "markdown": "feature 'zlib' for crate 'features-galore = 0.1.0' was not explicitly allowed\n\n**Dependency Graph 1**  \n\n```  \nfeatures-galore v0.1.0\n  \n```  \n",
             "text": "feature 'zlib' for crate 'features-galore = 0.1.0' was not explicitly allowed"
           },
           "partialFingerprints": {
@@ -190,7 +190,7 @@ expression: s
             }
           ],
           "message": {
-            "markdown": "feature 'zlib-ng-compat' for crate 'libssh2-sys = 0.2.23' is explicitly denied\n\n## Dependency Graph 1\n\n```\nlibssh2-sys v0.2.23\n└── libssh2-sys feature 'zlib-ng-compat' \n    ├── libgit2-sys v0.13.4+1.4.2\n    │   └── git2 v0.14.4\n    │       └── features-galore v0.1.0\n    └── libgit2-sys feature 'zlib-ng-compat' \n        └── git2 v0.14.4 (*)\n\n```\n",
+            "markdown": "feature 'zlib-ng-compat' for crate 'libssh2-sys = 0.2.23' is explicitly denied\n\n**Dependency Graph 1**  \n\n```  \nlibssh2-sys v0.2.23\n└── libssh2-sys feature 'zlib-ng-compat' \n    ├── libgit2-sys v0.13.4+1.4.2\n    │   └── git2 v0.14.4\n    │       └── features-galore v0.1.0\n    └── libgit2-sys feature 'zlib-ng-compat' \n        └── git2 v0.14.4 (*)\n  \n```  \n",
             "text": "feature 'zlib-ng-compat' for crate 'libssh2-sys = 0.2.23' is explicitly denied"
           },
           "partialFingerprints": {
@@ -222,7 +222,7 @@ expression: s
             }
           ],
           "message": {
-            "markdown": "crate 'vcpkg = 0.2.15' is explicitly banned\n\n## Dependency Graph 1\n\n```\nvcpkg v0.2.15\n├── (build) libssh2-sys v0.2.23\n│   └── libgit2-sys v0.13.4+1.4.2\n│       └── git2 v0.14.4\n│           └── features-galore v0.1.0\n├── (build) libz-sys v1.1.8\n│   ├── libgit2-sys v0.13.4+1.4.2 (*)\n│   └── libssh2-sys v0.2.23 (*)\n└── (build) openssl-sys v0.9.76\n    └── libssh2-sys v0.2.23 (*)\n\n```\n",
+            "markdown": "crate 'vcpkg = 0.2.15' is explicitly banned\n\n**Dependency Graph 1**  \n\n```  \nvcpkg v0.2.15\n├── (build) libssh2-sys v0.2.23\n│   └── libgit2-sys v0.13.4+1.4.2\n│       └── git2 v0.14.4\n│           └── features-galore v0.1.0\n├── (build) libz-sys v1.1.8\n│   ├── libgit2-sys v0.13.4+1.4.2 (*)\n│   └── libssh2-sys v0.2.23 (*)\n└── (build) openssl-sys v0.9.76\n    └── libssh2-sys v0.2.23 (*)\n  \n```  \n",
             "text": "crate 'vcpkg = 0.2.15' is explicitly banned"
           },
           "partialFingerprints": {
@@ -242,7 +242,9 @@ expression: s
                 "region": {
                   "byteLength": 26,
                   "byteOffset": 99,
-                  "snippet": "parking_lot_core = \"=0.9.3",
+                  "snippet": {
+                    "text": "parking_lot_core = \"=0.9.3"
+                  },
                   "startLine": 7
                 }
               }
@@ -255,14 +257,16 @@ expression: s
                 "region": {
                   "byteLength": 77,
                   "byteOffset": 446,
-                  "snippet": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }",
+                  "snippet": {
+                    "text": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }"
+                  },
                   "startLine": 16
                 }
               }
             }
           ],
           "message": {
-            "markdown": "found 2 duplicate entries for crate 'windows-sys'\n\n## Dependency Graph 1\n\n```\nwindows-sys v0.36.1\n└── parking_lot_core v0.9.3\n    └── features-galore v0.1.0\n\n```\n\n\n## Dependency Graph 2\n\n```\nwindows-sys v0.42.0\n└── features-galore v0.1.0\n\n```\n",
+            "markdown": "found 2 duplicate entries for crate 'windows-sys'\n\n**Dependency Graph 1**  \n\n```  \nwindows-sys v0.36.1\n└── parking_lot_core v0.9.3\n    └── features-galore v0.1.0\n  \n```  \n\n\n**Dependency Graph 2**  \n\n```  \nwindows-sys v0.42.0\n└── features-galore v0.1.0\n  \n```  \n",
             "text": "found 2 duplicate entries for crate 'windows-sys'"
           },
           "partialFingerprints": {
@@ -283,7 +287,9 @@ expression: s
                 "region": {
                   "byteLength": 26,
                   "byteOffset": 99,
-                  "snippet": "parking_lot_core = \"=0.9.3",
+                  "snippet": {
+                    "text": "parking_lot_core = \"=0.9.3"
+                  },
                   "startLine": 7
                 }
               }
@@ -296,14 +302,16 @@ expression: s
                 "region": {
                   "byteLength": 77,
                   "byteOffset": 446,
-                  "snippet": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }",
+                  "snippet": {
+                    "text": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }"
+                  },
                   "startLine": 16
                 }
               }
             }
           ],
           "message": {
-            "markdown": "found 2 duplicate entries for crate 'windows_aarch64_msvc'\n\n## Dependency Graph 1\n\n```\nwindows_aarch64_msvc v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n\n```\n\n\n## Dependency Graph 2\n\n```\nwindows_aarch64_msvc v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n\n```\n",
+            "markdown": "found 2 duplicate entries for crate 'windows_aarch64_msvc'\n\n**Dependency Graph 1**  \n\n```  \nwindows_aarch64_msvc v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n  \n```  \n\n\n**Dependency Graph 2**  \n\n```  \nwindows_aarch64_msvc v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n  \n```  \n",
             "text": "found 2 duplicate entries for crate 'windows_aarch64_msvc'"
           },
           "partialFingerprints": {
@@ -324,7 +332,9 @@ expression: s
                 "region": {
                   "byteLength": 26,
                   "byteOffset": 99,
-                  "snippet": "parking_lot_core = \"=0.9.3",
+                  "snippet": {
+                    "text": "parking_lot_core = \"=0.9.3"
+                  },
                   "startLine": 7
                 }
               }
@@ -337,14 +347,16 @@ expression: s
                 "region": {
                   "byteLength": 77,
                   "byteOffset": 446,
-                  "snippet": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }",
+                  "snippet": {
+                    "text": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }"
+                  },
                   "startLine": 16
                 }
               }
             }
           ],
           "message": {
-            "markdown": "found 2 duplicate entries for crate 'windows_i686_gnu'\n\n## Dependency Graph 1\n\n```\nwindows_i686_gnu v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n\n```\n\n\n## Dependency Graph 2\n\n```\nwindows_i686_gnu v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n\n```\n",
+            "markdown": "found 2 duplicate entries for crate 'windows_i686_gnu'\n\n**Dependency Graph 1**  \n\n```  \nwindows_i686_gnu v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n  \n```  \n\n\n**Dependency Graph 2**  \n\n```  \nwindows_i686_gnu v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n  \n```  \n",
             "text": "found 2 duplicate entries for crate 'windows_i686_gnu'"
           },
           "partialFingerprints": {
@@ -365,7 +377,9 @@ expression: s
                 "region": {
                   "byteLength": 26,
                   "byteOffset": 99,
-                  "snippet": "parking_lot_core = \"=0.9.3",
+                  "snippet": {
+                    "text": "parking_lot_core = \"=0.9.3"
+                  },
                   "startLine": 7
                 }
               }
@@ -378,14 +392,16 @@ expression: s
                 "region": {
                   "byteLength": 77,
                   "byteOffset": 446,
-                  "snippet": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }",
+                  "snippet": {
+                    "text": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }"
+                  },
                   "startLine": 16
                 }
               }
             }
           ],
           "message": {
-            "markdown": "found 2 duplicate entries for crate 'windows_i686_msvc'\n\n## Dependency Graph 1\n\n```\nwindows_i686_msvc v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n\n```\n\n\n## Dependency Graph 2\n\n```\nwindows_i686_msvc v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n\n```\n",
+            "markdown": "found 2 duplicate entries for crate 'windows_i686_msvc'\n\n**Dependency Graph 1**  \n\n```  \nwindows_i686_msvc v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n  \n```  \n\n\n**Dependency Graph 2**  \n\n```  \nwindows_i686_msvc v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n  \n```  \n",
             "text": "found 2 duplicate entries for crate 'windows_i686_msvc'"
           },
           "partialFingerprints": {
@@ -406,7 +422,9 @@ expression: s
                 "region": {
                   "byteLength": 26,
                   "byteOffset": 99,
-                  "snippet": "parking_lot_core = \"=0.9.3",
+                  "snippet": {
+                    "text": "parking_lot_core = \"=0.9.3"
+                  },
                   "startLine": 7
                 }
               }
@@ -419,14 +437,16 @@ expression: s
                 "region": {
                   "byteLength": 77,
                   "byteOffset": 446,
-                  "snippet": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }",
+                  "snippet": {
+                    "text": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }"
+                  },
                   "startLine": 16
                 }
               }
             }
           ],
           "message": {
-            "markdown": "found 2 duplicate entries for crate 'windows_x86_64_gnu'\n\n## Dependency Graph 1\n\n```\nwindows_x86_64_gnu v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n\n```\n\n\n## Dependency Graph 2\n\n```\nwindows_x86_64_gnu v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n\n```\n",
+            "markdown": "found 2 duplicate entries for crate 'windows_x86_64_gnu'\n\n**Dependency Graph 1**  \n\n```  \nwindows_x86_64_gnu v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n  \n```  \n\n\n**Dependency Graph 2**  \n\n```  \nwindows_x86_64_gnu v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n  \n```  \n",
             "text": "found 2 duplicate entries for crate 'windows_x86_64_gnu'"
           },
           "partialFingerprints": {
@@ -447,7 +467,9 @@ expression: s
                 "region": {
                   "byteLength": 26,
                   "byteOffset": 99,
-                  "snippet": "parking_lot_core = \"=0.9.3",
+                  "snippet": {
+                    "text": "parking_lot_core = \"=0.9.3"
+                  },
                   "startLine": 7
                 }
               }
@@ -460,14 +482,16 @@ expression: s
                 "region": {
                   "byteLength": 77,
                   "byteOffset": 446,
-                  "snippet": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }",
+                  "snippet": {
+                    "text": "windows-sys = { version = \"0.42\", features = [\"Win32_System_LibraryLoader\"] }"
+                  },
                   "startLine": 16
                 }
               }
             }
           ],
           "message": {
-            "markdown": "found 2 duplicate entries for crate 'windows_x86_64_msvc'\n\n## Dependency Graph 1\n\n```\nwindows_x86_64_msvc v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n\n```\n\n\n## Dependency Graph 2\n\n```\nwindows_x86_64_msvc v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n\n```\n",
+            "markdown": "found 2 duplicate entries for crate 'windows_x86_64_msvc'\n\n**Dependency Graph 1**  \n\n```  \nwindows_x86_64_msvc v0.36.1\n└── windows-sys v0.36.1\n    └── parking_lot_core v0.9.3\n        └── features-galore v0.1.0\n  \n```  \n\n\n**Dependency Graph 2**  \n\n```  \nwindows_x86_64_msvc v0.42.0\n└── windows-sys v0.42.0\n    └── features-galore v0.1.0\n  \n```  \n",
             "text": "found 2 duplicate entries for crate 'windows_x86_64_msvc'"
           },
           "partialFingerprints": {

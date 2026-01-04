@@ -61,10 +61,10 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for OtherProcessor<'a, L> {
                 if !md.is_empty() {
                     md.push_str("\n\n");
                 }
-                md.push_str(&format!("## Dependency Graph {}\n\n", i + 1));
-                md.push_str("```\n");
+                md.push_str(&format!("**Dependency Graph {}**  \n\n", i + 1));
+                md.push_str("```  \n");
                 md.push_str(&crate::diag::write_compact_graph_as_text(&graph));
-                md.push_str("\n```\n");
+                md.push_str("  \n```  \n");
             }
         }
 
