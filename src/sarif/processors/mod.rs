@@ -1,5 +1,6 @@
 pub mod advisory;
 pub mod license;
+pub mod ban;
 pub mod other;
 
 use crate::diag::{Diag, Files};
@@ -34,6 +35,7 @@ pub struct DiagnosticData {
 pub enum Processor<'a, L: LocationFinder> {
     Advisory(advisory::AdvisoryProcessor<'a, L>),
     License(license::LicenseProcessor<'a, L>),
+    Ban(ban::BanProcessor<'a, L>),
     Other(other::OtherProcessor<'a, L>),
 }
 
@@ -41,6 +43,7 @@ pub enum Processor<'a, L: LocationFinder> {
 pub struct ProcessorSet<'a, L: LocationFinder> {
     advisory: Processor<'a, L>,
     license: Processor<'a, L>,
+    ban: Processor<'a, L>,
     other: Processor<'a, L>,
 }
 
@@ -53,6 +56,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for Processor<'a, L> {
         match self {
             Processor::Advisory(p) => p.process(diag, files),
             Processor::License(p) => p.process(diag, files),
+            Processor::Ban(p) => p.process(diag, files),
             Processor::Other(p) => p.process(diag, files),
         }
     }
@@ -67,6 +71,7 @@ impl<'a, L: LocationFinder> ProcessorSet<'a, L> {
         Self {
             advisory: Processor::Advisory(advisory::AdvisoryProcessor::new(grapher, locator, feature_depth)),
             license: Processor::License(license::LicenseProcessor::new(grapher, locator, feature_depth)),
+            ban: Processor::Ban(ban::BanProcessor::new(grapher, locator, feature_depth)),
             other: Processor::Other(other::OtherProcessor::new(grapher, locator, feature_depth)),
         }
     }
@@ -75,6 +80,7 @@ impl<'a, L: LocationFinder> ProcessorSet<'a, L> {
         match code {
             DiagnosticCode::Advisory(_) => &self.advisory,
             DiagnosticCode::License(_) => &self.license,
+            DiagnosticCode::Bans(_) => &self.ban,
             _ => &self.other,
         }
     }
