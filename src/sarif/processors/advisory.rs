@@ -65,11 +65,11 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
                     md.push_str(meta.id.as_str());
                 }
 
-                md.push('\n');
+                md.push_str(" - ");
                 md.push_str(&meta.title);
-                md.push('\n');
+                md.push_str("\n\n");
 
-                md.push_str("## Description\n");
+                md.push_str("## Description\n\n");
                 md.push_str(&meta.description);
                 md.push_str("\n\n");
 
@@ -78,11 +78,11 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
                     for un in advisory.versions.unaffected() {
                         writeln!(&mut md, "- `{un}`").unwrap();
                     }
-                    md.push('\n');
+                    md.push_str("\n\n");
                 }
 
                 if !advisory.versions.patched().is_empty() {
-                    md.push_str("## Patched\n");
+                    md.push_str("## Patched\n\n");
                     for un in advisory.versions.patched() {
                         writeln!(&mut md, "- `{un}`").unwrap();
                     }
@@ -133,10 +133,10 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
 
                 // Append dependency graph using the first graph we already built
                 if let Some(first_graph) = graphs.first() {
-                    md.push_str("## Dependency Graph\n\n");
-                    md.push_str("```\n");
+                    md.push_str("\n\n## Dependency Graph\n\n");
+                    md.push_str("```\n\n");
                     md.push_str(&crate::diag::write_compact_graph_as_text(first_graph));
-                    md.push_str("\n```\n");
+                    md.push_str("\n```\n\n");
                 }
 
                 Message::with_markdown(meta.title.clone(), Some(md))
