@@ -58,7 +58,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
 
                 let meta = &advisory.metadata;
 
-                md.push_str("# ");
+                md.push_str("### ");
                 if let Some(url) = &meta.url {
                     write!(&mut md, "[{}]({url})", meta.id).unwrap();
                 } else {
@@ -69,12 +69,12 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
                 md.push_str(&meta.title);
                 md.push_str("  \n\n");
 
-                md.push_str("## Description  \n\n");
+                md.push_str("#### Description  \n\n");
                 md.push_str(&meta.description);
                 md.push_str("  \n\n");
 
                 if !advisory.versions.unaffected().is_empty() {
-                    md.push_str("## Unaffected\n");
+                    md.push_str("### Unaffected\n");
                     for un in advisory.versions.unaffected() {
                         writeln!(&mut md, "- `{un}`").unwrap();
                     }
@@ -82,7 +82,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
                 }
 
                 if !advisory.versions.patched().is_empty() {
-                    md.push_str("## Patched\n\n");
+                    md.push_str("#### Patched\n\n");
                     for un in advisory.versions.patched() {
                         writeln!(&mut md, "- `{un}`").unwrap();
                     }
@@ -90,7 +90,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
                 }
 
                 if let Some(affected) = &advisory.affected {
-                    md.push_str("## Affected\n");
+                    md.push_str("#### Affected\n");
                     if !affected.functions.is_empty() {
                         md.push_str("| Functions | Versions |\n|---|---|\n");
                         for (path, reqs) in &affected.functions {
@@ -111,7 +111,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
                     }
 
                     if !affected.arch.is_empty() {
-                        md.push_str("### Arches\n");
+                        md.push_str("#### Arches\n");
                         for arch in &affected.arch {
                             md.push_str("- ");
                             md.push_str(arch.as_str());
@@ -121,7 +121,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
                     }
 
                     if !affected.os.is_empty() {
-                        md.push_str("### Operating Systems\n");
+                        md.push_str("#### Operating Systems\n");
                         for os in &affected.os {
                             md.push_str("- ");
                             md.push_str(os.as_str());
@@ -133,7 +133,7 @@ impl<'a, L: LocationFinder> DiagnosticProcessor for AdvisoryProcessor<'a, L> {
 
                 // Append dependency graph using the first graph we already built
                 if let Some(first_graph) = graphs.first() {
-                    md.push_str("  \n\n## Dependency Graph  \n\n");
+                    md.push_str("  \n\n#### Dependency Graph  \n\n");
                     md.push_str("```  \n\n");
                     md.push_str(&crate::diag::write_compact_graph_as_text(first_graph));
                     md.push_str("  \n```  \n\n");
